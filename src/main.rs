@@ -4,16 +4,18 @@ use bevy::math::{const_vec2, Vec3Swizzles};
 //use rand::prelude::random;
 
 const TIME_STEP: f32 = 0.1;
+const WINDOW_HEIGHT: f32 = 500.0;
+const WINDOW_WIDTH: f32 = 500.0;
 const ARENA_WIDTH: u32 = 200;
 const ARENA_HEIGHT: u32 = 200;
-const BOUNDS: Vec2 = const_vec2!([500.0, 500.0]);
+const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
 
 fn main() {
     App::new()
         .insert_resource(WindowDescriptor {
             title: "bevy!".to_string(),
-            width: 500.0,
-            height: 500.0,
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
