@@ -1,10 +1,12 @@
 use bevy::core::FixedTimestep;
 use bevy::prelude::*;
+use bevy::math::{const_vec2, Vec3Swizzles};
 //use rand::prelude::random;
 
 const TIME_STEP: f32 = 0.1;
 const ARENA_WIDTH: u32 = 200;
 const ARENA_HEIGHT: u32 = 200;
+const BOUNDS: Vec2 = const_vec2!([500.0, 500.0]);
 
 fn main() {
     App::new()
@@ -19,7 +21,7 @@ fn main() {
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
             SystemSet::new()
-                .with_system(position_translation)
+                // .with_system(position_translation)
                 .with_system(size_scaling),
         )
         .add_startup_system(setup)
@@ -87,6 +89,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             texture: ship_handle,
             transform: Transform {
                 scale: Vec3::new(10.0, 10.0, 10.0),
+                rotation: Quat::from_rotation_z(f32::to_radians(180.0)),
                 ..Default::default()
             },
             ..Default::default()
@@ -131,19 +134,21 @@ fn ship_movement(
     // move only on up
     for mut pos in ship_positions.iter_mut() {
         if keyboard_input.pressed(KeyCode::Up) {
-            movement_factor += 10.0;
+            movement_factor -= 20.0;
         }
     }
 
-    let rotation_delta = Quat::from_rotation_z(rotation_factor * 10.0 * TIME_STEP);
+    let rotation_delta = Quat::from_rotation_z(rotation_factor * f32::to_radians(45.0));
     transform.rotation *= rotation_delta;
-    println!("{}", transform.rotation);
 
     let movement_direction = transform.rotation * Vec3::Y;
     let movement_distance = movement_factor * 1.0;
     let translation_delta = movement_direction * movement_distance;
     
     transform.translation += translation_delta;
+
+    let extents = Vec3::from((BOUNDS / 2.0, 0.0));
+    transform.translation = transform.translation.min(extents).max(-extents);
 }
 
 fn size_scaling(windows: Res<Windows>, mut q: Query<(&Size, &mut Transform)>) {
@@ -157,17 +162,17 @@ fn size_scaling(windows: Res<Windows>, mut q: Query<(&Size, &mut Transform)>) {
     }
 }
 
-fn position_translation(windows: Res<Windows>, mut q: Query<(&Position, &mut Transform)>) {
-    fn convert(pos: f32, bound_window: f32, bound_game: f32) -> f32 {
-        let tile_size = bound_window / bound_game;
-        pos / bound_game * bound_window - (bound_window / 2.) + (tile_size / 2.)
-    }
-    let window = windows.get_primary().unwrap();
-    for (pos, mut transform) in q.iter_mut() {
-        transform.translation = Vec3::new(
-            convert(pos.x as f32, window.width() as f32, ARENA_WIDTH as f32),
-            convert(pos.y as f32, window.height() as f32, ARENA_HEIGHT as f32),
-            0.0,
-        );
-    }
-}
+// fn position_translation(windows: Res<Windows>, mut q: Query<(&Position, &mut Transform)>) {
+//     fn convert(pos: f32, bound_window: f32, bound_game: f32) -> f32 {
+//         let tile_size = bound_window / bound_game;
+//         pos / bound_game * bound_window - (bound_window / 2.) + (tile_size / 2.)
+//     }
+//     let window = windows.get_primary().unwrap();
+//     for (pos, mut transform) in q.iter_mut() {
+//         transform.translation = Vec3::new(
+//             convert(pos.x as f32, window.width() as f32, ARENA_WIDTH as f32),
+//             convert(pos.y as f32, window.height() as f32, ARENA_HEIGHT as f32),
+//             0.0,
+//         );
+//     }
+// }
