@@ -1,34 +1,18 @@
 use bevy::core::FixedTimestep;
 use bevy::prelude::*;
 use bevy::math::{const_vec2, Vec3Swizzles};
-//use rand::prelude::random;
+use rand::prelude::random;
 
 const TIME_STEP: f32 = 0.1;
 
 const WINDOW_HEIGHT: f32 = 500.0;
 const WINDOW_WIDTH: f32 = 500.0;
+const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
 
 const ARENA_WIDTH: u32 = 200;
 const ARENA_HEIGHT: u32 = 200;
 
-const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
-
 const FORWARD_MOVE_DIST: f32 = 100.0;
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-enum Turn {
-    Player1,
-    Player2,
-}
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct PlayerTurn(Turn);
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Player1;
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Player2;
 
 fn main() {
     App::new()
@@ -86,6 +70,21 @@ impl Size {
 
 #[derive(Component)]
 struct Player;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+enum Turn {
+    Player1,
+    Player2,
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct PlayerTurn(Turn);
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct Player1;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct Player2;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let player_ship = asset_server.load("textures/ships/ship (8).png");
@@ -249,18 +248,3 @@ fn size_scaling(windows: Res<Windows>, mut q: Query<(&Size, &mut Transform)>) {
         );
     }
 }
-
-// fn position_translation(windows: Res<Windows>, mut q: Query<(&Position, &mut Transform)>) {
-//     fn convert(pos: f32, bound_window: f32, bound_game: f32) -> f32 {
-//         let tile_size = bound_window / bound_game;
-//         pos / bound_game * bound_window - (bound_window / 2.) + (tile_size / 2.)
-//     }
-//     let window = windows.get_primary().unwrap();
-//     for (pos, mut transform) in q.iter_mut() {
-//         transform.translation = Vec3::new(
-//             convert(pos.x as f32, window.width() as f32, ARENA_WIDTH as f32),
-//             convert(pos.y as f32, window.height() as f32, ARENA_HEIGHT as f32),
-//             0.0,
-//         );
-//     }
-// }
