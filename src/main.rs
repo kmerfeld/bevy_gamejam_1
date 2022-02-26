@@ -4,11 +4,16 @@ use bevy::math::{const_vec2, Vec3Swizzles};
 //use rand::prelude::random;
 
 const TIME_STEP: f32 = 0.1;
+
 const WINDOW_HEIGHT: f32 = 500.0;
 const WINDOW_WIDTH: f32 = 500.0;
+
 const ARENA_WIDTH: u32 = 200;
 const ARENA_HEIGHT: u32 = 200;
+
 const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
+
+const FORWARD_MOVE_DIST: f32 = 100.0;
 
 fn main() {
     App::new()
@@ -19,7 +24,6 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
-        .add_system(update_position_text)
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
             SystemSet::new()
@@ -31,6 +35,11 @@ fn main() {
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(ship_movement),
+        )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+                .with_system(ship_movement_2),
         )
         .add_plugins(DefaultPlugins)
         .run();
@@ -91,7 +100,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             texture: ship_handle,
             transform: Transform {
                 scale: Vec3::new(10.0, 10.0, 10.0),
-                rotation: Quat::from_rotation_z(f32::to_radians(180.0)),
                 ..Default::default()
             },
             ..Default::default()
@@ -99,19 +107,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Position { x: ARENA_WIDTH as i32 / 2, y: 10 })
         .insert(Player)
         .insert(Size::square(0.3));
-}
-
-fn update_position_text(
-    _time: Res<Time>,
-    mut query: Query<&mut Text, With<PositionText>>,
-    player: Query<&mut Position, With<Player>>,
-) {
-    for p in player.iter() {
-        for mut text in query.iter_mut() {
-            text.sections[0].value = format!("{}/{}", p.x, p.y)
-            //"this is text".to_owned();
-        }
-    }
 }
 
 fn ship_movement(
@@ -136,7 +131,7 @@ fn ship_movement(
     // move only on up
     for mut pos in ship_positions.iter_mut() {
         if keyboard_input.pressed(KeyCode::Up) {
-            movement_factor -= 20.0;
+            movement_factor += 20.0;
         }
     }
 
@@ -147,6 +142,67 @@ fn ship_movement(
     let movement_distance = movement_factor * 1.0;
     let translation_delta = movement_direction * movement_distance;
     
+    transform.translation += translation_delta;
+
+    let extents = Vec3::from((BOUNDS / 2.0, 0.0));
+    transform.translation = transform.translation.min(extents).max(-extents);
+}
+
+fn ship_movement_2(
+    windows: Res<Windows>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut player_q: Query<(&Player, &mut Transform)>,
+    mut ship_positions: Query<&mut Position, With<Player>>,
+) {
+    let (ship, mut transform) = player_q.single_mut();
+
+    let mut rotation_factor = 0.0;
+    let mut movement_factor = 0.0;
+
+    // rotate on left/right
+    if keyboard_input.pressed(KeyCode::A) {
+        movement_factor += FORWARD_MOVE_DIST;
+        rotation_factor += 1.0;
+    }
+    if keyboard_input.pressed(KeyCode::D) {
+        movement_factor += FORWARD_MOVE_DIST;
+        rotation_factor -= 1.0;
+    }
+
+    // rotate on left/right
+    if keyboard_input.pressed(KeyCode::Q) {
+        movement_factor += FORWARD_MOVE_DIST;
+        rotation_factor += 2.0;
+    }
+    if keyboard_input.pressed(KeyCode::E) {
+        movement_factor += FORWARD_MOVE_DIST;
+        rotation_factor -= 2.0;
+    }
+
+    // move only on up
+    for mut pos in ship_positions.iter_mut() {
+        if keyboard_input.pressed(KeyCode::W) {
+            movement_factor += FORWARD_MOVE_DIST;
+        }
+    }
+
+    let rotation_delta = Quat::from_rotation_z(rotation_factor * f32::to_radians(45.0));
+    transform.rotation *= rotation_delta;
+
+    let movement_direction = transform.rotation * Vec3::Y;
+    let movement_distance = movement_factor * 1.0;
+    let translation_delta = movement_direction * movement_distance;
+    if translation_delta.x != 0.0 {
+        println!("move 1: {}", translation_delta);
+    } 
+    transform.translation += translation_delta;
+
+    let movement_direction = Vec3::Y * 0.0;
+    let movement_distance = movement_factor * 1.0;
+    let translation_delta = movement_direction * movement_distance;
+    if translation_delta.x != 0.0 {
+        println!("move 2: {}", translation_delta);
+    } 
     transform.translation += translation_delta;
 
     let extents = Vec3::from((BOUNDS / 2.0, 0.0));
