@@ -1,7 +1,7 @@
 use bevy::core::FixedTimestep;
 use bevy::math::const_vec2;
 use bevy::prelude::*;
-use bevy::sprite::collide_aabb::collide;
+use bevy::sprite::MaterialMesh2dBundle;
 use rand::Rng;
 
 const TIME_STEP: f32 = 0.1;
@@ -102,7 +102,7 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let mut spawned_rocks = vec![];
 
-    for i in 0..3 {
+    for _ in 0..3 {
         let rock_type: usize = rand::thread_rng().gen_range(0, rocks.len());
         let mut rock_x: f32 = rand::thread_rng().gen_range(60.0, (ARENA_WIDTH as f32) - 50.0);
         let mut rock_y: f32 = rand::thread_rng().gen_range(60.0, (ARENA_HEIGHT as f32) - 60.0);
@@ -148,7 +148,12 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
     }
 }
 
-fn spawn_player_ship(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_player_ship(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     let player_ship = asset_server.load("textures/ships/ship (10).png");
     // let ship_rot: i32 = rand::thread_rng().gen_range(-90, 1);
 
@@ -225,7 +230,6 @@ fn ship_movement(
     keyboard_input: Res<Input<KeyCode>>,
     mut player_q: Query<(With<Player>, &mut Transform, &PlayerTurn)>,
     mut targets: Query<(&mut Visibility, With<TargetReticule>)>,
-    ship_positions: Query<&mut Position, With<Player>>,
 ) {
     for (_, mut transform, player) in player_q.iter_mut() {
         if player.0 == player_turn.0 {
