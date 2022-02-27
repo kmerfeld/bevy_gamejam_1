@@ -41,13 +41,11 @@ fn main() {
 }
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
+///DEPRECIATED
 struct Position {
     x: i32,
     y: i32,
 }
-
-#[derive(Component)]
-struct PositionText;
 
 #[derive(Component)]
 struct Size {
@@ -81,12 +79,20 @@ struct Player1;
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct Player2;
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct TargetReticule;
+
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     let player_ship = asset_server.load("textures/ships/ship (8).png");
     let enemy_ship = asset_server.load("textures/ships/ship (10).png");
     // let water_bkg = asset_server.load("assets/textures/tiles/tile_73.png");
     // let font = asset_server.load("fonts/FiraMono-Regular.ttf");
-
+    //
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
     commands
@@ -101,7 +107,31 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
-        .insert(Size::square(0.15));
+        .insert(Size::square(0.15))
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+                    transform: Transform::default()
+                        .with_scale(Vec3::splat(128. * 3.0))
+                        .with_translation(Vec3::new(272.0, 0.0, 0.0))
+                        .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
+                    material: materials.add(ColorMaterial::from(Color::RED)),
+                    ..Default::default()
+                })
+                .insert(TargetReticule);
+            parent
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+                    transform: Transform::default()
+                        .with_scale(Vec3::splat(128. * 3.0))
+                        .with_translation(Vec3::new(-272.0, 0.0, 0.0))
+                        .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
+                    material: materials.add(ColorMaterial::from(Color::RED)),
+                    ..Default::default()
+                })
+                .insert(TargetReticule);
+        });
 
     commands
         .spawn_bundle(SpriteBundle {
@@ -116,13 +146,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(PlayerTurn(Turn::Player2))
-        .insert(Size::square(0.3));
+        .insert(Size::square(0.15));
 }
 
 fn ship_movement(
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
     mut player_q: Query<(With<Player>, &mut Transform, &PlayerTurn)>,
+    mut targets: Query<(&mut Visibility, With<TargetReticule>)>,
 ) {
     for (_, mut transform, player) in player_q.iter_mut() {
         if player.0 == player_turn.0 {
@@ -148,10 +179,16 @@ fn ship_movement(
                 movement_factor += FORWARD_MOVE_DIST;
                 rotation_factor -= 2.0;
             }
-
             // move forward
             if keyboard_input.pressed(KeyCode::W) {
                 movement_factor += FORWARD_MOVE_DIST;
+            }
+
+            //Toggle firing arcs when pressed
+            if keyboard_input.pressed(KeyCode::Space) {
+                for (mut visibility, _) in targets.iter_mut() {
+                    visibility.is_visible = !(visibility.is_visible)
+                }
             }
 
             for _ in 0..2 {
