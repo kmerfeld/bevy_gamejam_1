@@ -1,6 +1,6 @@
 use bevy::core::FixedTimestep;
-use bevy::prelude::*;
 use bevy::math::const_vec2;
+use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
 use rand::Rng;
 
@@ -13,7 +13,7 @@ const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
 const ARENA_WIDTH: u32 = 300;
 const ARENA_HEIGHT: u32 = 300;
 
-const FORWARD_MOVE_DIST: f32 = 10.0;
+const FORWARD_MOVE_DIST: f32 = 50.0;
 
 fn main() {
     App::new()
@@ -189,7 +189,7 @@ fn ship_movement(
     mut player_q: Query<(&Player, &mut Transform, &PlayerTurn)>,
     ship_positions: Query<&mut Position, With<Player>>,
 ) {
-    for (ship, mut transform, player) in player_q.iter_mut() {
+    for (_, mut transform, player) in player_q.iter_mut() {
         if player.0 == player_turn.0 {
             let mut rotation_factor = 0.0;
             let mut movement_factor = 0.0;
@@ -219,21 +219,21 @@ fn ship_movement(
                 movement_factor += FORWARD_MOVE_DIST;
             }
 
-            for i in 0..2 {
+            for _ in 0..2 {
                 let rotation_delta = Quat::from_rotation_z(rotation_factor * f32::to_radians(22.5));
-            
+
                 // move and rotate
                 let movement_direction = transform.rotation * Vec3::Y;
                 let movement_distance = movement_factor * 1.0;
                 let translation_delta = movement_direction * movement_distance;
                 transform.translation += translation_delta;
-                transform.rotation *= rotation_delta;    
+                transform.rotation *= rotation_delta;
             }
 
             // map boundaries
             let extents = Vec3::from((BOUNDS / 2.0, 0.0));
             transform.translation = transform.translation.min(extents).max(-extents);
-        }  
+        }
     }
 
     if player_turn.0 == Turn::Player1 {
