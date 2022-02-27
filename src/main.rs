@@ -5,8 +5,8 @@ use bevy::prelude::*;
 
 const TIME_STEP: f32 = 0.1;
 
-const WINDOW_HEIGHT: f32 = 500.0;
-const WINDOW_WIDTH: f32 = 500.0;
+const WINDOW_HEIGHT: f32 = 1000.0;
+const WINDOW_WIDTH: f32 = 1000.0;
 const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
 
 const ARENA_WIDTH: u32 = 200;
@@ -101,7 +101,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
-        .insert(Size::square(0.3));
+        .insert(Size::square(0.15));
 
     commands
         .spawn_bundle(SpriteBundle {
