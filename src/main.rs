@@ -1,7 +1,7 @@
 use bevy::core::FixedTimestep;
 use bevy::prelude::*;
-use bevy::math::{const_vec2, Vec3Swizzles};
-use rand::prelude::random;
+use bevy::math::const_vec2;
+use rand::Rng;
 
 const TIME_STEP: f32 = 0.1;
 
@@ -82,9 +82,14 @@ struct Player1;
 struct Player2;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let player_ship = asset_server.load("textures/ships/ship (8).png");
-    let enemy_ship = asset_server.load("textures/ships/ship (10).png");
-    // let water_bkg = asset_server.load("assets/textures/tiles/tile_73.png");
+    let enemy_ship = asset_server.load("textures/ships/ship (8).png");
+    let player_ship = asset_server.load("textures/ships/ship (10).png");
+    
+    let rocks: [Handle<Image>; 3] = [asset_server.load("textures/tiles/tile_49.png"),
+                                     asset_server.load("textures/tiles/tile_50.png"),
+                                     asset_server.load("textures/tiles/tile_51.png")];
+
+    let water_bkg: Handle<Image> = asset_server.load("textures/tiles/tile_73.png");
     // let font = asset_server.load("fonts/FiraMono-Regular.ttf");
 
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -118,15 +123,37 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(PlayerTurn(Turn::Player2))
         .insert(Size::square(0.3));
 
+    // randomly place 3 rocks on map
     
+    
+    for i in 0..3 {
+        let rock_type: usize = rand::thread_rng().gen_range(0, rocks.len());
+        let rock_x: f32 = rand::thread_rng().gen_range(-(ARENA_WIDTH as f32), ARENA_WIDTH as f32);
+        let rock_y: f32 = rand::thread_rng().gen_range(-(ARENA_HEIGHT as f32), ARENA_HEIGHT as f32);
+              
+        println!("rock x: {}\nrock y: {}", rock_x, rock_y);
+        println!("rock_type: {}", rock_type);
+
+        commands
+            .spawn_bundle(SpriteBundle {
+                texture: rocks[rock_type].clone(),
+                transform: Transform {
+                    scale: Vec3::new(10.0, 10.0, 10.0),
+                    translation: Vec3::new(rock_x, rock_y, 0.0),
+                    // rotation: Quat::from_rotation_z(f32::to_radians(180.0)),
+                    ..Default::default()
+                },
+                ..Default::default()
+        })
+        .insert(Size::square(0.4));
+    }
 }
 
 fn ship_movement(
-    windows: Res<Windows>,
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
     mut player_q: Query<(&Player, &mut Transform, &PlayerTurn)>,
-    mut ship_positions: Query<&mut Position, With<Player>>,
+    ship_positions: Query<&mut Position, With<Player>>,
 ) {
     for (ship, mut transform, player) in player_q.iter_mut() {
         if player.0 == player_turn.0 {
