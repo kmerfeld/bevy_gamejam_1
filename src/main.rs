@@ -11,10 +11,9 @@ const WINDOW_HEIGHT: f32 = 750.0;
 const WINDOW_WIDTH: f32 = 750.0;
 const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
 
-const ARENA_WIDTH: u32 = 300;
-const ARENA_HEIGHT: u32 = 300;
-
 const FORWARD_MOVE_DIST: f32 = 10.0;
+
+const SHIP_SIZE: f32 = 0.15;
 
 fn main() {
     App::new()
@@ -31,7 +30,7 @@ fn main() {
             CoreStage::PostUpdate,
             SystemSet::new()
                 //.with_system(position_translation)
-                .with_system(size_scaling),
+                // .with_system(size_scaling),
         )
         .add_startup_system(setup_camera)
         .add_startup_system(setup_rocks)
@@ -43,6 +42,7 @@ fn main() {
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(ship_movement),
         )
+        .add_system(ship_collide)
         .add_plugins(DefaultPlugins)
         .run();
 }
@@ -66,6 +66,13 @@ impl Size {
             height: x,
         }
     }
+}
+
+#[derive(PhysicsLayer)]
+enum Layer {
+    Enemy,
+    Player,
+    Rock,
 }
 
 #[derive(Component)]
@@ -107,10 +114,10 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     for _ in 0..3 {
         let rock_type: usize = rand::thread_rng().gen_range(0, rocks.len());
-        let mut rock_x: f32 = rand::thread_rng().gen_range(60.0, (ARENA_WIDTH as f32) - 50.0);
-        let mut rock_y: f32 = rand::thread_rng().gen_range(60.0, (ARENA_HEIGHT as f32) - 60.0);
+        let mut rock_x: f32 = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
+        let mut rock_y: f32 = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
         let rock_rot: f32 = rand::thread_rng().gen_range(0.0, 360.0);
-        let rock_size: f32 = rand::thread_rng().gen_range(0.3, 1.1);
+        let rock_size: f32 = rand::thread_rng().gen_range(0.4, 1.1);
 
         // make sure rocks are spaced apart
         if spawned_rocks.len() > 0 {
@@ -119,11 +126,11 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 let spawned_x: f32 = spawned_tmp.0;
                 let spawned_y: f32 = spawned_tmp.1;
 
-                while (rock_x >= spawned_x - 50.0 && rock_x <= spawned_x + 50.0)
-                    && (rock_y >= spawned_y - 50.0 && rock_y <= spawned_x + 50.0)
+                while (rock_x >= spawned_x - 60.0 && rock_x <= spawned_x + 60.0)
+                    && (rock_y >= spawned_y - 60.0 && rock_y <= spawned_y + 60.0)
                 {
-                    rock_x = rand::thread_rng().gen_range(60.0, (ARENA_WIDTH as f32) - 50.0);
-                    rock_y = rand::thread_rng().gen_range(60.0, (ARENA_HEIGHT as f32) - 60.0);
+                    rock_x = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
+                    rock_y = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
                 }
             }
             spawned_rocks.push((rock_x, rock_y));
@@ -131,24 +138,24 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
             spawned_rocks.push((rock_x, rock_y));
         }
 
-        // println!("Spaned rocks: {:?}", spawned_rocks);
-
         commands
             .spawn_bundle(SpriteBundle {
                 texture: rocks[rock_type].clone(),
                 transform: Transform {
-                    scale: Vec3::new(10.0, 10.0, 10.0),
+                    scale: Vec3::new(2.0, 2.0, 2.0),
                     rotation: Quat::from_rotation_z(f32::to_radians(rock_rot)),
+                    translation: Vec3::new(
+                        rock_x,
+                        rock_y,
+                        0.0,
+                    ),
                     ..Default::default()
                 },
                 ..Default::default()
             })
-            .insert(Position {
-                x: rock_x as i32,
-                y: rock_y as i32,
-            })
             .insert(RigidBody::Static)
             .insert(CollisionShape::Sphere { radius: 100.0 })
+            .insert(CollisionLayers::new(Layer::Rock, Layer::Player))
             .insert(Size::square(rock_size));
     }
 }
@@ -166,10 +173,10 @@ fn spawn_player_ship(
         .spawn_bundle(SpriteBundle {
             texture: player_ship,
             transform: Transform {
-                scale: Vec3::new(10.0, 10.0, 10.0),
+                scale: Vec3::new(0.75, 0.75, 0.75),
                 translation: Vec3::new(
-                    (ARENA_WIDTH as f32) - 30.0,
-                    -(ARENA_HEIGHT as f32) + 30.0,
+                    (WINDOW_WIDTH as f32) - 500.0,
+                    -(WINDOW_HEIGHT as f32) + 500.0,
                     0.0,
                 ),
                 // rotation: Quat::from_rotation_z(f32::to_radians(ship_rot)),
@@ -180,8 +187,10 @@ fn spawn_player_ship(
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
         .insert(RigidBody::Static)
-        .insert(CollisionShape::Sphere { radius: 100.0 })
-        .insert(Size::square(0.15))
+        .insert(CollisionShape::Sphere { radius: 10.0 })
+        .insert(CollisionLayers::new(Layer::Player, Layer::Enemy))
+        .insert(CollisionLayers::new(Layer::Player, Layer::Rock))
+        .insert(Size::square(SHIP_SIZE))
         .with_children(|parent| {
             parent
                 .spawn_bundle(MaterialMesh2dBundle {
@@ -218,10 +227,10 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn_bundle(SpriteBundle {
             texture: enemy_ship,
             transform: Transform {
-                scale: Vec3::new(10.0, 10.0, 10.0),
+                scale: Vec3::new(0.75, 0.75, 0.75),
                 translation: Vec3::new(
-                    -(ARENA_WIDTH as f32) + 30.0,
-                    (ARENA_HEIGHT as f32) - 30.0,
+                    -(WINDOW_WIDTH as f32) + 500.0,
+                    (WINDOW_HEIGHT as f32) - 500.0,
                     0.0,
                 ),
                 rotation: Quat::from_rotation_z(f32::to_radians(180.0)),
@@ -231,9 +240,10 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(RigidBody::Static)
-        .insert(CollisionShape::Sphere { radius: 100.0 })
+        .insert(CollisionShape::Sphere { radius: 10.0 })
         .insert(PlayerTurn(Turn::Player2))
-        .insert(Size::square(0.15));
+        .insert(CollisionLayers::new(Layer::Enemy, Layer::Player))
+        .insert(Size::square(SHIP_SIZE));
 }
 
 fn ship_movement(
@@ -257,15 +267,6 @@ fn ship_movement(
                 rotation_factor -= 1.0;
             }
 
-            // rotate on left/right
-            if keyboard_input.pressed(KeyCode::Q) {
-                movement_factor += FORWARD_MOVE_DIST;
-                rotation_factor += 2.0;
-            }
-            if keyboard_input.pressed(KeyCode::E) {
-                movement_factor += FORWARD_MOVE_DIST;
-                rotation_factor -= 2.0;
-            }
             // move forward
             if keyboard_input.pressed(KeyCode::W) {
                 movement_factor += FORWARD_MOVE_DIST;
@@ -324,19 +325,36 @@ fn detect_collisions(mut events: EventReader<CollisionEvent>) {
     }
 }
 
-fn size_scaling(windows: Res<Windows>, mut q: Query<(&Size, &mut Transform)>) {
-    let window = windows.get_primary().unwrap();
-    for (sprite_size, mut transform) in q.iter_mut() {
-        transform.scale = Vec3::new(
-            sprite_size.width / ARENA_WIDTH as f32 * window.width() as f32,
-            sprite_size.height / ARENA_HEIGHT as f32 * window.height() as f32,
-            1.0,
-        );
-    }
+fn ship_collide(mut commands: Commands, mut events: EventReader<CollisionEvent>) {
+    events
+        .iter()
+        .filter(|e| e.is_started())
+        .for_each(|event| {
+            let (entity_1, entity_2) = event.rigid_body_entities();
+            let (layers_1, layers_2) = event.collision_layers();
+            if (is_player(layers_1) && is_enemy(layers_2)) || (is_player(layers_2) && is_enemy(layers_1)) {
+                println!("Collision between ships");
+            } else if (is_player(layers_1) && is_rock(layers_2)) || (is_player(layers_2) && is_rock(layers_1)) {
+                println!("Collision between ship and rock");
+            }
+        });
+}
+
+fn is_player(layers: CollisionLayers) -> bool {
+    layers.contains_group(Layer::Player) && !layers.contains_group(Layer::Enemy)
+}
+
+fn is_enemy(layers: CollisionLayers) -> bool {
+    !layers.contains_group(Layer::Player) && layers.contains_group(Layer::Enemy)
+}
+
+fn is_rock(layers: CollisionLayers) -> bool {
+    !layers.contains_group(Layer::Player) && layers.contains_group(Layer::Rock)
 }
 
 fn game_over(mut commands: Commands, mut reader: EventReader<GameOverEvent>) {
     if reader.iter().next().is_some() {
-        // if you hit a rock, hit the enemy ship, get killed by the enemy, or kill the enemy - respawn
+        println!("GAME OVER");
+        // TODO: despawn everyone then respawn at starting positions
     }
 }
