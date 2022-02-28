@@ -2,6 +2,7 @@ use bevy::core::FixedTimestep;
 use bevy::math::const_vec2;
 use bevy::prelude::*;
 use bevy::sprite::MaterialMesh2dBundle;
+use heron::prelude::*;
 use rand::Rng;
 
 const TIME_STEP: f32 = 0.1;
@@ -25,6 +26,7 @@ fn main() {
         })
         .insert_resource(PlayerTurn(Turn::Player1))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
+        .add_plugin(PhysicsPlugin::default())
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
             SystemSet::new()
@@ -35,6 +37,7 @@ fn main() {
         .add_startup_system(setup_rocks)
         .add_startup_system(spawn_player_ship)
         .add_startup_system(spawn_enemy_ships)
+        .add_system(detect_collisions)
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
@@ -144,6 +147,8 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 x: rock_x as i32,
                 y: rock_y as i32,
             })
+            .insert(RigidBody::Dynamic)
+            .insert(CollisionShape::Sphere { radius: 10.0 })
             .insert(Size::square(rock_size));
     }
 }
@@ -174,6 +179,8 @@ fn spawn_player_ship(
         })
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
+        .insert(RigidBody::Dynamic)
+        .insert(CollisionShape::Sphere { radius: 10.0 })
         .insert(Size::square(0.15))
         .with_children(|parent| {
             parent
@@ -288,6 +295,27 @@ fn ship_movement(
         // player_turn.0 = Turn::Player2;
     } else {
         player_turn.0 = Turn::Player1;
+    }
+}
+
+fn detect_collisions(mut events: EventReader<CollisionEvent>) {
+    for event in events.iter() {
+        match event {
+            CollisionEvent::Started(data1, data2) => {
+                println!(
+                    "Entity {:?} and {:?} started to collide",
+                    data1.rigid_body_entity(),
+                    data2.rigid_body_entity()
+                )
+            }
+            CollisionEvent::Stopped(data1, data2) => {
+                println!(
+                    "Entity {:?} and {:?} stopped to collide",
+                    data1.rigid_body_entity(),
+                    data2.rigid_body_entity()
+                )
+            }
+        }
     }
 }
 
