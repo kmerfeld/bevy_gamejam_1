@@ -14,7 +14,7 @@ const BOUNDS: Vec2 = const_vec2!([WINDOW_HEIGHT, WINDOW_WIDTH]);
 const ARENA_WIDTH: u32 = 300;
 const ARENA_HEIGHT: u32 = 300;
 
-const FORWARD_MOVE_DIST: f32 = 50.0;
+const FORWARD_MOVE_DIST: f32 = 10.0;
 
 fn main() {
     App::new()
@@ -147,8 +147,8 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 x: rock_x as i32,
                 y: rock_y as i32,
             })
-            .insert(RigidBody::Dynamic)
-            .insert(CollisionShape::Sphere { radius: 10.0 })
+            .insert(RigidBody::Static)
+            .insert(CollisionShape::Sphere { radius: 100.0 })
             .insert(Size::square(rock_size));
     }
 }
@@ -179,8 +179,8 @@ fn spawn_player_ship(
         })
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
-        .insert(RigidBody::Dynamic)
-        .insert(CollisionShape::Sphere { radius: 10.0 })
+        .insert(RigidBody::Static)
+        .insert(CollisionShape::Sphere { radius: 100.0 })
         .insert(Size::square(0.15))
         .with_children(|parent| {
             parent
@@ -230,6 +230,8 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         })
         .insert(Player)
+        .insert(RigidBody::Static)
+        .insert(CollisionShape::Sphere { radius: 100.0 })
         .insert(PlayerTurn(Turn::Player2))
         .insert(Size::square(0.15));
 }
@@ -310,6 +312,7 @@ fn detect_collisions(mut events: EventReader<CollisionEvent>) {
                     data2.rigid_body_entity()
                 )
             }
+
             CollisionEvent::Stopped(data1, data2) => {
                 println!(
                     "Entity {:?} and {:?} stopped to collide",
