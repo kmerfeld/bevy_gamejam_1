@@ -191,6 +191,7 @@ fn spawn_player_ship(
                         .with_translation(Vec3::new(272.0, 0.0, 0.0))
                         .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
                     material: materials.add(ColorMaterial::from(Color::RED)),
+                    visibility: Visibility { is_visible: false },
                     ..Default::default()
                 })
                 .insert(TargetReticule);
@@ -202,6 +203,7 @@ fn spawn_player_ship(
                         .with_translation(Vec3::new(-272.0, 0.0, 0.0))
                         .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
                     material: materials.add(ColorMaterial::from(Color::RED)),
+                    visibility: Visibility { is_visible: false },
                     ..Default::default()
                 })
                 .insert(TargetReticule);
