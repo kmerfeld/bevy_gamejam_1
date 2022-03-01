@@ -114,8 +114,8 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     for _ in 0..3 {
         let rock_type: usize = rand::thread_rng().gen_range(0, rocks.len());
-        let mut rock_x: f32 = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
-        let mut rock_y: f32 = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
+        let mut rock_x: f32 = rand::thread_rng().gen_range((-(WINDOW_WIDTH as f32) / 2.0) + 200.0, ((WINDOW_WIDTH as f32) / 2.0) - 200.0);
+        let mut rock_y: f32 = rand::thread_rng().gen_range((-(WINDOW_HEIGHT as f32) / 2.0) + 100.0, ((WINDOW_HEIGHT as f32) / 2.0) - 100.0);
         let rock_rot: f32 = rand::thread_rng().gen_range(0.0, 360.0);
         let rock_size: f32 = rand::thread_rng().gen_range(0.4, 1.1);
 
@@ -129,8 +129,8 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 while (rock_x >= spawned_x - 60.0 && rock_x <= spawned_x + 60.0)
                     && (rock_y >= spawned_y - 60.0 && rock_y <= spawned_y + 60.0)
                 {
-                    rock_x = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
-                    rock_y = rand::thread_rng().gen_range(-(WINDOW_WIDTH as f32) / 2.0, (WINDOW_WIDTH as f32) / 2.0);
+                    rock_x = rand::thread_rng().gen_range((-(WINDOW_WIDTH as f32) / 2.0) + 100.0, ((WINDOW_WIDTH as f32) / 2.0) - 100.0);
+                    rock_y = rand::thread_rng().gen_range((-(WINDOW_HEIGHT as f32) / 2.0) + 100.0, ((WINDOW_HEIGHT as f32) / 2.0) - 100.0);
                 }
             }
             spawned_rocks.push((rock_x, rock_y));
