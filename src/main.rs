@@ -326,7 +326,11 @@ fn detect_collisions(mut events: EventReader<CollisionEvent>) {
     }
 }
 
-fn ship_collide(mut commands: Commands, mut events: EventReader<CollisionEvent>) {
+fn ship_collide(
+    mut commands: Commands, 
+    mut events: EventReader<CollisionEvent>,
+    mut query: Query<(&Player, &mut Health)>,
+) {
     events
         .iter()
         .filter(|e| e.is_started())
@@ -335,8 +339,16 @@ fn ship_collide(mut commands: Commands, mut events: EventReader<CollisionEvent>)
             let (layers_1, layers_2) = event.collision_layers();
             if (is_player(layers_1) && is_enemy(layers_2)) || (is_player(layers_2) && is_enemy(layers_1)) {
                 println!("Collision between ships");
+                for (player, mut health) in query.iter_mut() {
+                    health.value -= 1;
+                    println!("Health: {}", health.value);
+                }
             } else if (is_player(layers_1) && is_rock(layers_2)) || (is_player(layers_2) && is_rock(layers_1)) {
                 println!("Collision between ship and rock");
+                for (player, mut health) in query.iter_mut() {
+                    health.value -= 1;
+                    println!("Health: {}", health.value);
+                }
             }
         });
 }
