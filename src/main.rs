@@ -141,7 +141,7 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             })
             .insert(RigidBody::Static)
-            .insert(CollisionShape::Sphere { radius: 100.0 })
+            .insert(CollisionShape::Sphere { radius: rock_size * 100.0 })
             .insert(Size::square(rock_size));
     }
 }
@@ -173,7 +173,7 @@ fn spawn_player_ship(
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
         .insert(RigidBody::Static)
-        .insert(CollisionShape::Sphere { radius: 10.0 })
+        .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
         .insert(CollisionLayers::new(Layer::Player, Layer::Enemy))
         .insert(CollisionLayers::none()
                     .with_group(Layer::Player)
@@ -228,7 +228,7 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(RigidBody::Static)
-        .insert(CollisionShape::Sphere { radius: 10.0 })
+        .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
         .insert(CollisionLayers::none()
                     .with_group(Layer::Enemy)
                     .with_masks(&[Layer::Player, Layer::Rock]))
