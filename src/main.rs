@@ -23,7 +23,7 @@ fn main() {
             height: WINDOW_HEIGHT,
             ..Default::default()
         })
-        .insert_resource(PlayerTurn(Turn::Player1))
+        .insert_resource(PlayerTurn(Turn::Player))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
         .add_plugin(PhysicsPlugin::default())
         .add_startup_system(setup_camera)
@@ -55,41 +55,38 @@ impl Size {
     }
 }
 
-#[derive(PhysicsLayer)]
-enum Layer {
-    Enemy,
-    Player,
-    Rock,
-}
-
-#[derive(Component)]
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct Player;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct Enemy;
+
+#[derive(Component)]
+struct Health {
+    value: i32,
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
 enum Turn {
-    Player1,
-    Player2,
+    Player,
+    Enemy,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct PlayerTurn(Turn);
 
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Player1;
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Player2;
+#[derive(PhysicsLayer)]
+enum Layer {
+    Player,
+    Enemy,
+    Rock,
+}
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct TargetReticule;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct GameOverEvent;
-
-#[derive(Component)]
-struct Health {
-    value: i32,
-}
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -175,11 +172,11 @@ fn spawn_player_ship(
             },
             ..Default::default()
         })
+        .insert(Player)
         .insert(
             Health { value: 3 },
         )
-        .insert(Player)
-        .insert(PlayerTurn(Turn::Player1))
+        .insert(PlayerTurn(Turn::Player))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
         .insert(CollisionLayers::new(Layer::Player, Layer::Enemy))
@@ -234,16 +231,16 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
+        .insert(Enemy)
         .insert(
             Health { value: 5 },
         )
-        .insert(Player)
+        .insert(PlayerTurn(Turn::Enemy))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
         .insert(CollisionLayers::none()
                     .with_group(Layer::Enemy)
                     .with_masks(&[Layer::Player, Layer::Rock]))
-        .insert(PlayerTurn(Turn::Player2))
         .insert(Size::square(SHIP_SIZE));
 }
 
@@ -297,10 +294,10 @@ fn ship_movement(
         }
     }
 
-    if player_turn.0 == Turn::Player1 {
-        // player_turn.0 = Turn::Player2;
+    if player_turn.0 == Turn::Player {
+        // player_turn.0 = Turn::Enemy;
     } else {
-        player_turn.0 = Turn::Player1;
+        player_turn.0 = Turn::Player;
     }
 }
 
@@ -329,7 +326,10 @@ fn detect_collisions(mut events: EventReader<CollisionEvent>) {
 fn ship_collide(
     mut commands: Commands, 
     mut events: EventReader<CollisionEvent>,
-    mut query: Query<(&Player, &mut Health)>,
+    mut query: QuerySet<(
+        QueryState<&mut Health, With<Player>>,
+        QueryState<&mut Health, With<Enemy>>
+    )>,
 ) {
     events
         .iter()
@@ -339,15 +339,25 @@ fn ship_collide(
             let (layers_1, layers_2) = event.collision_layers();
             if (is_player(layers_1) && is_enemy(layers_2)) || (is_player(layers_2) && is_enemy(layers_1)) {
                 println!("Collision between ships");
-                for (player, mut health) in query.iter_mut() {
+                for mut health in query.q0().iter_mut() {
                     health.value -= 1;
-                    println!("Health: {}", health.value);
+                    println!("Player health: {}", health.value); // DEBUG!
+                }
+                for mut health in query.q1().iter_mut() {
+                    health.value -= 1;
+                    println!("Enemy health: {}", health.value); // DEBUG!
                 }
             } else if (is_player(layers_1) && is_rock(layers_2)) || (is_player(layers_2) && is_rock(layers_1)) {
                 println!("Collision between ship and rock");
-                for (player, mut health) in query.iter_mut() {
+                for mut health in query.q0().iter_mut() {
                     health.value -= 1;
-                    println!("Health: {}", health.value);
+                    println!("Player health: {}", health.value); // DEBUG!
+                }
+            } else if (is_enemy(layers_1) && is_rock(layers_2)) || (is_enemy(layers_2) && is_rock(layers_1)) {
+                println!("Collision between ship and rock");
+                for mut health in query.q1().iter_mut() {
+                    health.value -= 1;
+                    println!("Enemy health: {}", health.value); // DEBUG!
                 }
             }
         });
@@ -365,9 +375,14 @@ fn is_rock(layers: CollisionLayers) -> bool {
     layers.contains_group(Layer::Player) && layers.contains_group(Layer::Rock)
 }
 
-fn game_over(mut commands: Commands, mut reader: EventReader<GameOverEvent>) {
-    if reader.iter().next().is_some() {
-        println!("GAME OVER");
-        // TODO: despawn everyone then respawn at starting positions
+fn game_over(
+    mut commands: Commands,
+    mut reader: EventReader<GameOverEvent>,
+    mut query: Query<(&Player, &mut Health)>,
+) {
+    for (player, mut health) in query.iter_mut() {
+        if health.value <= 0 {
+            println!("GAME OVER");
+        }
     }
 }
