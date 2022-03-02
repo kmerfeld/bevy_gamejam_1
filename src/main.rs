@@ -86,6 +86,11 @@ struct TargetReticule;
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct GameOverEvent;
 
+#[derive(Component)]
+struct Health {
+    value: i32,
+}
+
 fn setup_camera(mut commands: Commands) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 }
@@ -170,6 +175,9 @@ fn spawn_player_ship(
             },
             ..Default::default()
         })
+        .insert(
+            Health { value: 3 },
+        )
         .insert(Player)
         .insert(PlayerTurn(Turn::Player1))
         .insert(RigidBody::Static)
@@ -226,6 +234,9 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
+        .insert(
+            Health { value: 5 },
+        )
         .insert(Player)
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
