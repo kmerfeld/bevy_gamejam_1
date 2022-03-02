@@ -26,12 +26,6 @@ fn main() {
         .insert_resource(PlayerTurn(Turn::Player1))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
         .add_plugin(PhysicsPlugin::default())
-        .add_system_set_to_stage(
-            CoreStage::PostUpdate,
-            SystemSet::new()
-                //.with_system(position_translation)
-                // .with_system(size_scaling),
-        )
         .add_startup_system(setup_camera)
         .add_startup_system(setup_rocks)
         .add_startup_system(spawn_player_ship)
@@ -45,13 +39,6 @@ fn main() {
         .add_system(ship_collide)
         .add_plugins(DefaultPlugins)
         .run();
-}
-
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
-///DEPRECIATED
-struct Position {
-    x: i32,
-    y: i32,
 }
 
 #[derive(Component)]
@@ -155,7 +142,6 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .insert(RigidBody::Static)
             .insert(CollisionShape::Sphere { radius: 100.0 })
-            .insert(CollisionLayers::new(Layer::Rock, Layer::Player))
             .insert(Size::square(rock_size));
     }
 }
@@ -189,7 +175,9 @@ fn spawn_player_ship(
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: 10.0 })
         .insert(CollisionLayers::new(Layer::Player, Layer::Enemy))
-        .insert(CollisionLayers::new(Layer::Player, Layer::Rock))
+        .insert(CollisionLayers::none()
+                    .with_group(Layer::Player)
+                    .with_masks(&[Layer::Enemy, Layer::Rock]))
         .insert(Size::square(SHIP_SIZE))
         .with_children(|parent| {
             parent
@@ -241,8 +229,10 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Player)
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: 10.0 })
+        .insert(CollisionLayers::none()
+                    .with_group(Layer::Enemy)
+                    .with_masks(&[Layer::Player, Layer::Rock]))
         .insert(PlayerTurn(Turn::Player2))
-        .insert(CollisionLayers::new(Layer::Enemy, Layer::Player))
         .insert(Size::square(SHIP_SIZE));
 }
 
@@ -316,7 +306,7 @@ fn detect_collisions(mut events: EventReader<CollisionEvent>) {
 
             CollisionEvent::Stopped(data1, data2) => {
                 println!(
-                    "Entity {:?} and {:?} stopped to collide",
+                    "Entity {:?} and {:?} stopped colliding",
                     data1.rigid_body_entity(),
                     data2.rigid_body_entity()
                 )
@@ -341,7 +331,7 @@ fn ship_collide(mut commands: Commands, mut events: EventReader<CollisionEvent>)
 }
 
 fn is_player(layers: CollisionLayers) -> bool {
-    layers.contains_group(Layer::Player) && !layers.contains_group(Layer::Enemy)
+    !layers.contains_group(Layer::Enemy) && layers.contains_group(Layer::Player)
 }
 
 fn is_enemy(layers: CollisionLayers) -> bool {
@@ -349,7 +339,7 @@ fn is_enemy(layers: CollisionLayers) -> bool {
 }
 
 fn is_rock(layers: CollisionLayers) -> bool {
-    !layers.contains_group(Layer::Player) && layers.contains_group(Layer::Rock)
+    layers.contains_group(Layer::Player) && layers.contains_group(Layer::Rock)
 }
 
 fn game_over(mut commands: Commands, mut reader: EventReader<GameOverEvent>) {
