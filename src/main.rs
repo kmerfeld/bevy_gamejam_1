@@ -15,7 +15,6 @@ const FORWARD_MOVE_DIST: f32 = 10.0;
 
 const SHIP_SIZE: f32 = 0.15;
 
-const ACTIONS_PER_ROUND: i32 = 3;
 const MAX_ROUNDS: i32 = 10;
 
 fn main() {
@@ -28,7 +27,7 @@ fn main() {
         })
         .insert_resource(PlayerTurn(Turn::Player))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
-        .insert_resource(Round { round_count: MAX_ROUNDS, action_count: ACTIONS_PER_ROUND })
+        .insert_resource(Round { count: MAX_ROUNDS })
         .add_plugin(PhysicsPlugin::default())
         .add_startup_system(setup_camera)
         .add_startup_system(setup_rocks)
@@ -58,6 +57,11 @@ struct Health {
 }
 
 #[derive(Component)]
+struct ActionPoints {
+    value: i32,
+}
+
+#[derive(Component)]
 struct Size {
     width: f32,
     height: f32,
@@ -83,8 +87,7 @@ struct PlayerTurn(Turn);
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct Round {
-    round_count: i32,
-    action_count: i32
+    count: i32,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -190,6 +193,9 @@ fn spawn_player_ship(
         .insert(
             Health { value: 3 },
         )
+        .insert(
+            ActionPoints { value: 3 },
+        )
         .insert(PlayerTurn(Turn::Player))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
@@ -249,6 +255,9 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(
             Health { value: 5 },
         )
+        .insert(
+            ActionPoints { value: 5 },
+        )
         .insert(PlayerTurn(Turn::Enemy))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
@@ -258,6 +267,8 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Size::square(SHIP_SIZE));
 }
 
+// TODO: player and enemy movement should be separated since enemy will be AI based and doens't require keypress
+// TODO: use loop for player::Turn.count number of turns decreasing by 1 for each action
 fn ship_movement(
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
