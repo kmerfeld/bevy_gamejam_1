@@ -15,6 +15,9 @@ const FORWARD_MOVE_DIST: f32 = 10.0;
 
 const SHIP_SIZE: f32 = 0.15;
 
+const ACTIONS_PER_ROUND: i32 = 3;
+const MAX_ROUNDS: i32 = 10;
+
 fn main() {
     App::new()
         .insert_resource(WindowDescriptor {
@@ -25,6 +28,7 @@ fn main() {
         })
         .insert_resource(PlayerTurn(Turn::Player))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
+        .insert_resource(Round { round_count: MAX_ROUNDS, action_count: ACTIONS_PER_ROUND })
         .add_plugin(PhysicsPlugin::default())
         .add_startup_system(setup_camera)
         .add_startup_system(setup_rocks)
@@ -41,6 +45,18 @@ fn main() {
         .run();
 }
 
+// players
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct Player;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct Enemy;
+
+#[derive(Component)]
+struct Health {
+    value: i32,
+}
+
 #[derive(Component)]
 struct Size {
     width: f32,
@@ -55,17 +71,7 @@ impl Size {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Player;
-
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Enemy;
-
-#[derive(Component)]
-struct Health {
-    value: i32,
-}
-
+// combat
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 enum Turn {
     Player,
@@ -75,6 +81,16 @@ enum Turn {
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct PlayerTurn(Turn);
 
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct Round {
+    round_count: i32,
+    action_count: i32
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+struct TargetReticule;
+
+// collision
 #[derive(PhysicsLayer)]
 enum Layer {
     Player,
@@ -82,9 +98,7 @@ enum Layer {
     Rock,
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct TargetReticule;
-
+// game
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct GameOverEvent;
 
@@ -324,7 +338,6 @@ fn detect_collisions(mut events: EventReader<CollisionEvent>) {
 }
 
 fn ship_collide(
-    mut commands: Commands, 
     mut events: EventReader<CollisionEvent>,
     mut query: QuerySet<(
         QueryState<&mut Health, With<Player>>,
@@ -335,7 +348,6 @@ fn ship_collide(
         .iter()
         .filter(|e| e.is_started())
         .for_each(|event| {
-            let (entity_1, entity_2) = event.rigid_body_entities();
             let (layers_1, layers_2) = event.collision_layers();
             if (is_player(layers_1) && is_enemy(layers_2)) || (is_player(layers_2) && is_enemy(layers_1)) {
                 println!("Collision between ships");
@@ -375,14 +387,17 @@ fn is_rock(layers: CollisionLayers) -> bool {
     layers.contains_group(Layer::Player) && layers.contains_group(Layer::Rock)
 }
 
-fn game_over(
-    mut commands: Commands,
-    mut reader: EventReader<GameOverEvent>,
-    mut query: Query<(&Player, &mut Health)>,
-) {
-    for (player, mut health) in query.iter_mut() {
-        if health.value <= 0 {
-            println!("GAME OVER");
-        }
-    }
-}
+// fn game_over(
+//     mut commands: Commands,
+//     mut reader: EventReader<GameOverEvent>,
+//     mut query: Query<(&Player, &mut Health)>,
+// ) {
+//     for (player, mut health) in query.iter_mut() {
+//         if health.value <= 0 {
+//             println!("GAME OVER");
+//         }
+//     }
+// }
+
+// TODO: Add function for rounds and turns to take place; attacking and moving decreases action points
+// and when all actions points have been used for both player and enemy, the round ends and next begins
