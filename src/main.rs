@@ -127,11 +127,6 @@ enum Layer {
     CannonBall,
 }
 
-#[derive(Component)]
-struct FiringShip {
-    value: String,
-}
-
 // game
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct GameOverEvent;
@@ -200,7 +195,7 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .insert(RigidBody::Static)
             .insert(CollisionShape::Sphere {
-                radius: rock_size * 10.0,
+                radius: rock_size * 13.0,
             })
             .insert(
                 CollisionLayers::none()
@@ -267,9 +262,6 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
         .insert(ActionPoints { value: 5 })
-        .insert(FiringShip {
-            value: "Enemy".to_string(),
-        })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
@@ -358,9 +350,6 @@ fn ship_movement(
                         transform: transform.clone(),
                         ..Default::default()
                     })
-                    .insert(FiringShip {
-                        value: "Player".to_owned(),
-                    })
                     .insert(RigidBody::Dynamic)
                     .insert(CollisionShape::Sphere { radius: 10.0 })
                     .insert(
@@ -375,9 +364,6 @@ fn ship_movement(
                         texture: asset_server.load("textures/ship_parts/cannonBall.png"),
                         transform: transform.clone(),
                         ..Default::default()
-                    })
-                    .insert(FiringShip {
-                        value: "Player".to_owned(),
                     })
                     .insert(RigidBody::Dynamic)
                     .insert(CollisionShape::Sphere { radius: 10.0 })
@@ -455,7 +441,6 @@ fn cannon_fodder(
         QueryState<&mut Health, With<Player>>,
         QueryState<&mut Health, With<Enemy>>,
     )>,
-    mut cannon_query: Query<&mut FiringShip, With<CannonBall>>,
 ) {
     events
         .iter()

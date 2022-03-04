@@ -24,7 +24,7 @@ pub fn think(
                 let player_q = get_player_direction(p, &e);
 
                 if player_q == direction.d {
-                    movement_factor += crate::FORWARD_MOVE_DIST;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                 } else if (player_q - direction.d).abs() > 5 {
                     //TODO special case
                     //turn left
@@ -33,7 +33,7 @@ pub fn think(
                     } else {
                         direction.d -= 1;
                     }
-                    movement_factor += crate::FORWARD_MOVE_DIST;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                     rotation_factor += 1.0;
                 } else if direction.d > player_q {
                     //turn left
@@ -42,7 +42,7 @@ pub fn think(
                     } else {
                         direction.d -= 1;
                     }
-                    movement_factor += crate::FORWARD_MOVE_DIST;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                     rotation_factor += 1.0;
                 } else {
                     //turn right
@@ -52,7 +52,7 @@ pub fn think(
                     } else {
                         direction.d += 1;
                     }
-                    movement_factor += crate::FORWARD_MOVE_DIST;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                     rotation_factor -= 1.0;
                 }
 
@@ -80,7 +80,6 @@ pub fn think(
                         ..Default::default()
                     })
                     .insert(crate::CannonBall)
-                    .insert(crate::FiringShip { value: "Enemy".to_string() })
                     .insert(RigidBody::Dynamic)
                     .insert(CollisionShape::Sphere { radius: 10.0 })
                     .insert(
