@@ -31,8 +31,8 @@ pub enum AppState {
 fn main() {
     App::new()
         .add_state(AppState::InGame)
-        .add_system_set(SystemSet::on_enter(AppState::Lose).with_system(ui::lose_message))
-        .add_system_set(SystemSet::on_enter(AppState::Win).with_system(ui::win_message))
+        .add_system_set(SystemSet::on_enter(AppState::Lose).with_system(ui::end_message))
+        .add_system_set(SystemSet::on_enter(AppState::Win).with_system(ui::end_message))
         .add_system_set(SystemSet::on_update(AppState::Win).with_system(ui::button_system))
         .add_system_set(SystemSet::on_update(AppState::Lose).with_system(ui::button_system))
         .insert_resource(WindowDescriptor {
@@ -378,7 +378,7 @@ fn ship_movement(
                     if ap.value < 3 {
                         ap.value += 1;
                     }
-                    
+
                     player_turn.0 = Turn::Enemy;
                 }
                 if keyboard_input.pressed(KeyCode::D) {

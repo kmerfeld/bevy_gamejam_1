@@ -71,7 +71,7 @@ const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
-pub fn lose_message(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn end_message(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
     commands
         .spawn_bundle(ButtonBundle {
@@ -102,16 +102,8 @@ pub fn lose_message(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             });
         });
-    println!("LOSE");
 }
 
-pub fn win_message(mut commands: Commands) {
-    commands.spawn_bundle(UiCameraBundle::default());
-    commands.spawn_bundle(ButtonBundle {
-        ..Default::default()
-    });
-    println!("WIN");
-}
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = asset_server.load("fonts/FiraMono-Regular.ttf");
     let text_style = TextStyle {
