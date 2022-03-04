@@ -25,7 +25,7 @@ pub fn think(
                 let player_q = get_player_direction(p, &e);
 
                 if player_q == direction.d {
-                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.50;
                     if ap.value < 3 {
                         ap.value += 1;
                     }
@@ -37,7 +37,7 @@ pub fn think(
                     } else {
                         direction.d -= 1;
                     }
-                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.50;
                     rotation_factor += 1.0;
 
                     if ap.value < 3 {
@@ -50,7 +50,7 @@ pub fn think(
                     } else {
                         direction.d -= 1;
                     }
-                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.50;
                     rotation_factor += 1.0;
 
                     if ap.value < 3 {
@@ -63,7 +63,7 @@ pub fn think(
                     } else {
                         direction.d += 1;
                     }
-                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
+                    movement_factor += (crate::FORWARD_MOVE_DIST) * 0.50;
                     rotation_factor -= 1.0;
 
                     if ap.value < 3 {
