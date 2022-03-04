@@ -21,8 +21,20 @@ const SHIP_SIZE: f32 = 0.15;
 const MAX_ROUNDS: i32 = 10;
 const TIMESTEP_1_PER_SECOND: f64 = 60.0 / 60.0;
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum AppState {
+    InGame,
+    Win,
+    Lose,
+}
+
 fn main() {
     App::new()
+        .add_state(AppState::InGame)
+        .add_system_set(SystemSet::on_enter(AppState::Lose).with_system(ui::lose_message))
+        .add_system_set(SystemSet::on_enter(AppState::Win).with_system(ui::win_message))
+        .add_system_set(SystemSet::on_update(AppState::Win).with_system(ui::button_system))
+        .add_system_set(SystemSet::on_update(AppState::Lose).with_system(ui::button_system))
         .insert_resource(WindowDescriptor {
             title: "bevy!".to_string(),
             width: WINDOW_WIDTH,
@@ -42,6 +54,7 @@ fn main() {
         .add_startup_system(setup_rocks)
         .add_startup_system(ui::setup)
         .add_system(ui::enemy_text_update_system)
+        .add_system(ui::game_over)
         .add_system(ui::player_text_update_system)
         .add_startup_system(spawn_player_ship)
         .add_system(
@@ -520,15 +533,3 @@ fn is_cannonball(layers: CollisionLayers) -> bool {
         && !layers.contains_group(Layer::Enemy)
         && layers.contains_group(Layer::CannonBall)
 }
-
-// fn game_over(
-//     mut commands: Commands,
-//     mut reader: EventReader<GameOverEvent>,
-//     mut query: Query<(&Player, &mut Health)>,
-// ) {
-//     for (player, mut health) in query.iter_mut() {
-//         if health.value <= 0 {
-//             println!("GAME OVER");
-//         }
-//     }
-// }
