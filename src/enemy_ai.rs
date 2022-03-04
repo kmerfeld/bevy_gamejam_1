@@ -15,7 +15,7 @@ pub fn think(
 ) {
     if player_turn.0 == crate::Turn::Enemy {
         player_turn.0 = crate::Turn::Player;
-        println!("{:?}", player_turn.0);
+        // println!("{:?}", player_turn.0);
         for (_, p) in player.iter() {
             for (_, mut e, mut direction, _) in enemy.iter_mut() {
                 let mut rotation_factor = 0.0;
@@ -79,8 +79,15 @@ pub fn think(
                         transform: e.clone(),
                         ..Default::default()
                     })
+                    .insert(crate::CannonBall)
+                    .insert(crate::FiringShip { value: "Enemy".to_string() })
                     .insert(RigidBody::Dynamic)
-                    //.insert(CollisionShape::Sphere { radius: 10.0 })
+                    .insert(CollisionShape::Sphere { radius: 10.0 })
+                    .insert(
+                        CollisionLayers::none()
+                            .with_group(crate::Layer::CannonBall)
+                            .with_masks(&[crate::Layer::Rock, crate::Layer::Player]),
+                    )
                     .insert(Velocity::from_linear(crate::get_gun_arc(player_q) * 1000.0));
             }
         }

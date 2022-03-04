@@ -3,6 +3,7 @@ use bevy::math::const_vec2;
 use bevy::prelude::*;
 use heron::prelude::*;
 use rand::Rng;
+use std::string::String;
 
 mod enemy_ai;
 mod ui;
@@ -19,12 +20,6 @@ const SHIP_SIZE: f32 = 0.15;
 
 const MAX_ROUNDS: i32 = 10;
 const TIMESTEP_1_PER_SECOND: f64 = 60.0 / 60.0;
-
-#[derive(SystemLabel, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum TurnLabel {
-    Player,
-    Enemy,
-}
 
 fn main() {
     App::new()
@@ -55,13 +50,13 @@ fn main() {
                 .before(TurnLabel::Player),
         )
         .add_startup_system(spawn_enemy_ships)
-        //.add_system(detect_collisions)
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(ship_movement.label(TurnLabel::Player)),
         )
-        .add_system(ship_collide)
+        .add_system(ship_collision)
+        .add_system(cannon_fodder)
         .add_plugins(DefaultPlugins)
         .run();
 }
@@ -72,6 +67,9 @@ pub struct Player;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct Enemy;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct CannonBall;
 
 #[derive(Component)]
 pub struct Health {
@@ -106,6 +104,12 @@ pub enum Turn {
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct PlayerTurn(Turn);
 
+#[derive(SystemLabel, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum TurnLabel {
+    Player,
+    Enemy,
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct Round {
     count: i32,
@@ -120,6 +124,12 @@ enum Layer {
     Player,
     Enemy,
     Rock,
+    CannonBall,
+}
+
+#[derive(Component)]
+struct FiringShip {
+    value: String,
 }
 
 // game
@@ -191,7 +201,12 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
             .insert(RigidBody::Static)
             .insert(CollisionShape::Sphere {
                 radius: rock_size * 10.0,
-            });
+            })
+            .insert(
+                CollisionLayers::none()
+                    .with_group(Layer::Rock)
+                    .with_masks(&[Layer::Enemy, Layer::Player, Layer::CannonBall]),
+            );
     }
 }
 
@@ -222,11 +237,10 @@ fn spawn_player_ship(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
         })
-        .insert(CollisionLayers::new(Layer::Player, Layer::Enemy))
         .insert(
             CollisionLayers::none()
                 .with_group(Layer::Player)
-                .with_masks(&[Layer::Enemy, Layer::Rock]),
+                .with_masks(&[Layer::Enemy, Layer::Rock, Layer::CannonBall]),
         );
 }
 
@@ -253,6 +267,9 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
         .insert(ActionPoints { value: 5 })
+        .insert(FiringShip {
+            value: "Enemy".to_string(),
+        })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
@@ -260,7 +277,7 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(
             CollisionLayers::none()
                 .with_group(Layer::Enemy)
-                .with_masks(&[Layer::Player, Layer::Rock]),
+                .with_masks(&[Layer::Player, Layer::Rock, Layer::CannonBall]),
         );
 }
 
@@ -278,57 +295,14 @@ pub fn get_gun_arc(d: i32) -> Vec3 {
     }
 }
 
-fn gun(
-    mut commands: Commands,
-    ship: Query<(With<Player>, &Transform, &Direction)>,
-    asset_server: Res<AssetServer>,
-) {
-    for (_, transform, direction) in ship.iter() {
-        let mut l_dir = direction.d - 2;
-        if l_dir < 0 {
-            l_dir = direction.d + 8 - 2;
-        }
-        let mut r_dir = direction.d + 2;
-        if r_dir > 7 {
-            r_dir = direction.d - 8 + 2;
-        }
-
-        let left = get_gun_arc(l_dir);
-        let right = get_gun_arc(r_dir);
-
-        //Handle direction to rotatio        t.translation.x += 10.0;
-        commands
-            .spawn_bundle(SpriteBundle {
-                texture: asset_server.load("textures/ship_parts/cannonBall.png"),
-                transform: transform.clone(),
-                ..Default::default()
-            })
-            .insert(RigidBody::Dynamic)
-            //.insert(CollisionShape::Sphere { radius: 10.0 })
-            .insert(Velocity::from_linear(left * 1000.0));
-
-        commands
-            .spawn_bundle(SpriteBundle {
-                texture: asset_server.load("textures/ship_parts/cannonBall.png"),
-                transform: transform.clone(),
-                ..Default::default()
-            })
-            .insert(RigidBody::Dynamic)
-            //.insert(CollisionShape::Sphere { radius: 10.0 })
-            .insert(Velocity::from_linear(right * 1000.0));
-
-        //commands.entity(entity).push_children(&[bullet]);
-    }
-}
-
-// TODO: player and enemy movement should be separated since enemy will be AI based and doens't require keypress
-// TODO: use loop for player::Turn.count number of turns decreasing by 1 for each action
 fn ship_movement(
+    mut commands: Commands,
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut player_q: Query<(With<Player>, &mut Transform, &mut Direction)>,
+    asset_server: Res<AssetServer>,
+    mut player: Query<(With<Player>, &mut Transform, &mut Direction)>,
 ) {
-    for (_, mut transform, mut direction) in player_q.iter_mut() {
+    for (_, mut transform, mut direction) in player.iter_mut() {
         if Turn::Player == player_turn.0 {
             let mut rotation_factor = 0.0;
             let mut movement_factor = 0.0;
@@ -363,8 +337,57 @@ fn ship_movement(
                 player_turn.0 = Turn::Enemy;
             }
 
-            //Toggle firing arcs when pressed
-            if keyboard_input.pressed(KeyCode::Space) {}
+            // Toggle firing arcs when pressed
+            if keyboard_input.pressed(KeyCode::Space) {
+                let mut l_dir = direction.d - 2;
+                if l_dir < 0 {
+                    l_dir = direction.d + 8 - 2;
+                }
+                let mut r_dir = direction.d + 2;
+                if r_dir > 7 {
+                    r_dir = direction.d - 8 + 2;
+                }
+
+                let left = get_gun_arc(l_dir);
+                let right = get_gun_arc(r_dir);
+
+                //Handle direction to rotatio        t.translation.x += 10.0;
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                        transform: transform.clone(),
+                        ..Default::default()
+                    })
+                    .insert(FiringShip {
+                        value: "Player".to_owned(),
+                    })
+                    .insert(RigidBody::Dynamic)
+                    .insert(CollisionShape::Sphere { radius: 10.0 })
+                    .insert(
+                        CollisionLayers::none()
+                            .with_group(crate::Layer::CannonBall)
+                            .with_masks(&[crate::Layer::Rock, crate::Layer::Enemy]),
+                    )
+                    .insert(Velocity::from_linear(left * 1000.0));
+
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                        transform: transform.clone(),
+                        ..Default::default()
+                    })
+                    .insert(FiringShip {
+                        value: "Player".to_owned(),
+                    })
+                    .insert(RigidBody::Dynamic)
+                    .insert(CollisionShape::Sphere { radius: 10.0 })
+                    .insert(
+                        CollisionLayers::none()
+                            .with_group(crate::Layer::CannonBall)
+                            .with_masks(&[crate::Layer::Rock, crate::Layer::Enemy]),
+                    )
+                    .insert(Velocity::from_linear(right * 1000.0));
+            }
 
             for _ in 0..2 {
                 let rotation_delta = Quat::from_rotation_z(rotation_factor * f32::to_radians(22.5));
@@ -384,29 +407,7 @@ fn ship_movement(
     }
 }
 
-fn detect_collisions(mut events: EventReader<CollisionEvent>) {
-    for event in events.iter() {
-        match event {
-            CollisionEvent::Started(data1, data2) => {
-                println!(
-                    "Entity {:?} and {:?} started to collide",
-                    data1.rigid_body_entity(),
-                    data2.rigid_body_entity()
-                )
-            }
-
-            CollisionEvent::Stopped(data1, data2) => {
-                println!(
-                    "Entity {:?} and {:?} stopped colliding",
-                    data1.rigid_body_entity(),
-                    data2.rigid_body_entity()
-                )
-            }
-        }
-    }
-}
-
-fn ship_collide(
+fn ship_collision(
     mut events: EventReader<CollisionEvent>,
     mut query: QuerySet<(
         QueryState<&mut Health, With<Player>>,
@@ -415,6 +416,8 @@ fn ship_collide(
 ) {
     events.iter().filter(|e| e.is_started()).for_each(|event| {
         let (layers_1, layers_2) = event.collision_layers();
+        let (entity_1, entity_2) = event.rigid_body_entities();
+
         if (is_player(layers_1) && is_enemy(layers_2))
             || (is_player(layers_2) && is_enemy(layers_1))
         {
@@ -427,24 +430,75 @@ fn ship_collide(
                 health.value -= 1;
                 println!("Enemy health: {}", health.value); // DEBUG!
             }
-        } else if (is_player(layers_1) && is_rock(layers_2))
-            || (is_player(layers_2) && is_rock(layers_1))
+        }
+
+        if (is_player(layers_1) && is_rock(layers_2)) || (is_player(layers_2) && is_rock(layers_1))
         {
-            //println!("Collision between ship and rock");
+            println!("Collision between player and rock");
             for mut health in query.q0().iter_mut() {
                 health.value -= 1;
                 println!("Player health: {}", health.value); // DEBUG!
             }
-        } else if (is_enemy(layers_1) && is_rock(layers_2))
-            || (is_enemy(layers_2) && is_rock(layers_1))
-        {
-            //println!("Collision between ship and rock");
-            for mut health in query.q1().iter_mut() {
-                health.value -= 1;
-                println!("Enemy health: {}", health.value); // DEBUG!
-            }
+        }
+
+        if (is_enemy(layers_1) && is_rock(layers_2)) || (is_enemy(layers_2) && is_rock(layers_1)) {
+            println!("Collision between enemy and rock");
+            println!("Enemy is stunned!");
         }
     });
+}
+
+fn cannon_fodder(
+    mut commands: Commands,
+    mut events: EventReader<CollisionEvent>,
+    mut queryset: QuerySet<(
+        QueryState<&mut Health, With<Player>>,
+        QueryState<&mut Health, With<Enemy>>,
+    )>,
+    mut cannon_query: Query<&mut FiringShip, With<CannonBall>>,
+) {
+    events
+        .iter()
+        .filter(|e| e.is_started())
+        .filter_map(|event| {
+            let (layers_1, layers_2) = event.collision_layers();
+            let (entity_1, entity_2) = event.rigid_body_entities();
+
+            if is_player(layers_1) && is_cannonball(layers_2) {
+                println!("Player hit by cannon");
+                for mut health in queryset.q0().iter_mut() {
+                    health.value -= 1;
+                    println!("Player health: {}", health.value); // DEBUG!
+                }
+                return Some(entity_2);
+            } else if is_cannonball(layers_2) && is_player(layers_1) {
+                println!("Player hit by cannon");
+                for mut health in queryset.q0().iter_mut() {
+                    health.value -= 1;
+                    println!("Player health: {}", health.value); // DEBUG!
+                }
+                return Some(entity_1);
+            }
+
+            if is_enemy(layers_1) && is_cannonball(layers_2) {
+                println!("Enemy hit by cannon");
+                for mut health in queryset.q1().iter_mut() {
+                    health.value -= 1;
+                    println!("Enemy health: {}", health.value); // DEBUG!
+                }
+                return Some(entity_2);
+            } else if is_cannonball(layers_2) && is_enemy(layers_1) {
+                println!("Enemy hit by cannon");
+                for mut health in queryset.q1().iter_mut() {
+                    health.value -= 1;
+                    println!("Enemy health: {}", health.value); // DEBUG!
+                }
+                return Some(entity_1);
+            } else {
+                return None;
+            }
+        })
+        .for_each(|cannon_entity| commands.entity(cannon_entity).despawn());
 }
 
 fn is_player(layers: CollisionLayers) -> bool {
@@ -456,7 +510,15 @@ fn is_enemy(layers: CollisionLayers) -> bool {
 }
 
 fn is_rock(layers: CollisionLayers) -> bool {
-    layers.contains_group(Layer::Player) && layers.contains_group(Layer::Rock)
+    !layers.contains_group(Layer::Player)
+        && !layers.contains_group(Layer::Enemy)
+        && layers.contains_group(Layer::Rock)
+}
+
+fn is_cannonball(layers: CollisionLayers) -> bool {
+    !layers.contains_group(Layer::Player)
+        && !layers.contains_group(Layer::Enemy)
+        && layers.contains_group(Layer::CannonBall)
 }
 
 // fn game_over(
@@ -470,6 +532,3 @@ fn is_rock(layers: CollisionLayers) -> bool {
 //         }
 //     }
 // }
-
-// TODO: Add function for rounds and turns to take place; attacking and moving decreases action points
-// and when all actions points have been used for both player and enemy, the round ends and next begins
