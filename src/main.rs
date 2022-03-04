@@ -140,11 +140,6 @@ enum Layer {
     CannonBall,
 }
 
-#[derive(Component)]
-struct FiringShip {
-    value: String,
-}
-
 // game
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct GameOverEvent;
@@ -213,7 +208,7 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .insert(RigidBody::Static)
             .insert(CollisionShape::Sphere {
-                radius: rock_size * 10.0,
+                radius: rock_size * 13.0,
             })
             .insert(
                 CollisionLayers::none()
@@ -279,10 +274,7 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Enemy)
         .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
-        .insert(ActionPoints { value: 5 })
-        .insert(FiringShip {
-            value: "Enemy".to_string(),
-        })
+        .insert(ActionPoints { value: 3 })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
@@ -313,93 +305,101 @@ fn ship_movement(
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
     asset_server: Res<AssetServer>,
-    mut player: Query<(With<Player>, &mut Transform, &mut Direction)>,
+    mut player: Query<(With<Player>, &mut Transform, &mut Direction, &mut ActionPoints)>,
 ) {
-    for (_, mut transform, mut direction) in player.iter_mut() {
+    for (_, mut transform, mut direction, mut ap) in player.iter_mut() {
         if Turn::Player == player_turn.0 {
             let mut rotation_factor = 0.0;
             let mut movement_factor = 0.0;
 
-            // rotate on left/right
-            if keyboard_input.pressed(KeyCode::A) {
-                if direction.d == 0 {
-                    direction.d = 7;
-                } else {
-                    direction.d -= 1;
-                }
-                movement_factor += FORWARD_MOVE_DIST;
-                rotation_factor += 1.0;
-
-                player_turn.0 = Turn::Enemy;
-            }
-            if keyboard_input.pressed(KeyCode::D) {
-                if direction.d == 7 {
-                    direction.d = 0;
-                } else {
-                    direction.d += 1;
-                }
-                movement_factor += FORWARD_MOVE_DIST;
-                rotation_factor -= 1.0;
-
-                player_turn.0 = Turn::Enemy;
-            }
-
-            // move forward
-            if keyboard_input.pressed(KeyCode::W) {
-                movement_factor += FORWARD_MOVE_DIST;
-                player_turn.0 = Turn::Enemy;
-            }
-
-            // Toggle firing arcs when pressed
             if keyboard_input.pressed(KeyCode::Space) {
-                let mut l_dir = direction.d - 2;
-                if l_dir < 0 {
-                    l_dir = direction.d + 8 - 2;
+                if ap.value == 3 {
+                    let mut l_dir = direction.d - 2;
+                    if l_dir < 0 {
+                        l_dir = direction.d + 8 - 2;
+                    }
+                    let mut r_dir = direction.d + 2;
+                    if r_dir > 7 {
+                        r_dir = direction.d - 8 + 2;
+                    }
+
+                    let left = get_gun_arc(l_dir);
+                    let right = get_gun_arc(r_dir);
+
+                    //Handle direction to rotatio        t.translation.x += 10.0;
+                    commands
+                        .spawn_bundle(SpriteBundle {
+                            texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                            transform: transform.clone(),
+                            ..Default::default()
+                        })
+                        .insert(RigidBody::Dynamic)
+                        .insert(CollisionShape::Sphere { radius: 10.0 })
+                        .insert(
+                            CollisionLayers::none()
+                                .with_group(crate::Layer::CannonBall)
+                                .with_masks(&[crate::Layer::Rock, crate::Layer::Enemy]),
+                        )
+                        .insert(Velocity::from_linear(left * 1000.0));
+
+                    commands
+                        .spawn_bundle(SpriteBundle {
+                            texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                            transform: transform.clone(),
+                            ..Default::default()
+                        })
+                        .insert(RigidBody::Dynamic)
+                        .insert(CollisionShape::Sphere { radius: 10.0 })
+                        .insert(
+                            CollisionLayers::none()
+                                .with_group(crate::Layer::CannonBall)
+                                .with_masks(&[crate::Layer::Rock, crate::Layer::Enemy]),
+                        )
+                        .insert(Velocity::from_linear(right * 1000.0));
+
+                        ap.value -= 3;
                 }
-                let mut r_dir = direction.d + 2;
-                if r_dir > 7 {
-                    r_dir = direction.d - 8 + 2;
+            } else {
+                // rotate on left/right
+                if keyboard_input.pressed(KeyCode::A) {
+                    if direction.d == 0 {
+                        direction.d = 7;
+                    } else {
+                        direction.d -= 1;
+                    }
+                    movement_factor += FORWARD_MOVE_DIST;
+                    rotation_factor += 1.0;
+
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
+                    
+                    player_turn.0 = Turn::Enemy;
+                }
+                if keyboard_input.pressed(KeyCode::D) {
+                    if direction.d == 7 {
+                        direction.d = 0;
+                    } else {
+                        direction.d += 1;
+                    }
+                    movement_factor += FORWARD_MOVE_DIST;
+                    rotation_factor -= 1.0;
+
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
+
+                    player_turn.0 = Turn::Enemy;
                 }
 
-                let left = get_gun_arc(l_dir);
-                let right = get_gun_arc(r_dir);
-
-                //Handle direction to rotatio        t.translation.x += 10.0;
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        texture: asset_server.load("textures/ship_parts/cannonBall.png"),
-                        transform: transform.clone(),
-                        ..Default::default()
-                    })
-                    .insert(FiringShip {
-                        value: "Player".to_owned(),
-                    })
-                    .insert(RigidBody::Dynamic)
-                    .insert(CollisionShape::Sphere { radius: 10.0 })
-                    .insert(
-                        CollisionLayers::none()
-                            .with_group(crate::Layer::CannonBall)
-                            .with_masks(&[crate::Layer::Rock, crate::Layer::Enemy]),
-                    )
-                    .insert(Velocity::from_linear(left * 1000.0));
-
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        texture: asset_server.load("textures/ship_parts/cannonBall.png"),
-                        transform: transform.clone(),
-                        ..Default::default()
-                    })
-                    .insert(FiringShip {
-                        value: "Player".to_owned(),
-                    })
-                    .insert(RigidBody::Dynamic)
-                    .insert(CollisionShape::Sphere { radius: 10.0 })
-                    .insert(
-                        CollisionLayers::none()
-                            .with_group(crate::Layer::CannonBall)
-                            .with_masks(&[crate::Layer::Rock, crate::Layer::Enemy]),
-                    )
-                    .insert(Velocity::from_linear(right * 1000.0));
+                // move forward
+                if keyboard_input.pressed(KeyCode::W) {
+                    movement_factor += FORWARD_MOVE_DIST;
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
+                    player_turn.0 = Turn::Enemy;
+                }
             }
 
             for _ in 0..2 {
@@ -468,7 +468,6 @@ fn cannon_fodder(
         QueryState<&mut Health, With<Player>>,
         QueryState<&mut Health, With<Enemy>>,
     )>,
-    mut cannon_query: Query<&mut FiringShip, With<CannonBall>>,
 ) {
     events
         .iter()
