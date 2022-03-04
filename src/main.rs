@@ -16,6 +16,7 @@ const FORWARD_MOVE_DIST: f32 = 10.0;
 const SHIP_SIZE: f32 = 0.15;
 
 const MAX_ROUNDS: i32 = 10;
+const TIMESTEP_1_PER_SECOND: f64 = 60.0 / 60.0;
 
 fn main() {
     App::new()
@@ -25,6 +26,11 @@ fn main() {
             height: WINDOW_HEIGHT,
             ..Default::default()
         })
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(TIMESTEP_1_PER_SECOND))
+                .with_system(gun),
+        )
         .insert_resource(PlayerTurn(Turn::Player))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
         .insert_resource(Round { count: MAX_ROUNDS })
@@ -59,6 +65,19 @@ struct Health {
 #[derive(Component)]
 struct ActionPoints {
     value: i32,
+}
+
+///0 => up
+///1 => up_left
+///2 => left
+///3 => down_left
+///4 => down
+///5 => down_right
+///6 => right
+///7 => up_right
+#[derive(Component)]
+struct Direction {
+    d: i32,
 }
 
 #[derive(Component)]
@@ -120,8 +139,14 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     for _ in 0..3 {
         let rock_type: usize = rand::thread_rng().gen_range(0, rocks.len());
-        let mut rock_x: f32 = rand::thread_rng().gen_range((-(WINDOW_WIDTH as f32) / 2.0) + 200.0, ((WINDOW_WIDTH as f32) / 2.0) - 200.0);
-        let mut rock_y: f32 = rand::thread_rng().gen_range((-(WINDOW_HEIGHT as f32) / 2.0) + 100.0, ((WINDOW_HEIGHT as f32) / 2.0) - 100.0);
+        let mut rock_x: f32 = rand::thread_rng().gen_range(
+            (-(WINDOW_WIDTH as f32) / 2.0) + 200.0,
+            ((WINDOW_WIDTH as f32) / 2.0) - 200.0,
+        );
+        let mut rock_y: f32 = rand::thread_rng().gen_range(
+            (-(WINDOW_HEIGHT as f32) / 2.0) + 100.0,
+            ((WINDOW_HEIGHT as f32) / 2.0) - 100.0,
+        );
         let rock_rot: f32 = rand::thread_rng().gen_range(0.0, 360.0);
         let rock_size: f32 = rand::thread_rng().gen_range(0.4, 1.1);
 
@@ -135,8 +160,14 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 while (rock_x >= spawned_x - 60.0 && rock_x <= spawned_x + 60.0)
                     && (rock_y >= spawned_y - 60.0 && rock_y <= spawned_y + 60.0)
                 {
-                    rock_x = rand::thread_rng().gen_range((-(WINDOW_WIDTH as f32) / 2.0) + 100.0, ((WINDOW_WIDTH as f32) / 2.0) - 100.0);
-                    rock_y = rand::thread_rng().gen_range((-(WINDOW_HEIGHT as f32) / 2.0) + 100.0, ((WINDOW_HEIGHT as f32) / 2.0) - 100.0);
+                    rock_x = rand::thread_rng().gen_range(
+                        (-(WINDOW_WIDTH as f32) / 2.0) + 100.0,
+                        ((WINDOW_WIDTH as f32) / 2.0) - 100.0,
+                    );
+                    rock_y = rand::thread_rng().gen_range(
+                        (-(WINDOW_HEIGHT as f32) / 2.0) + 100.0,
+                        ((WINDOW_HEIGHT as f32) / 2.0) - 100.0,
+                    );
                 }
             }
             spawned_rocks.push((rock_x, rock_y));
@@ -150,17 +181,15 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
                 transform: Transform {
                     scale: Vec3::new(2.0, 2.0, 2.0),
                     rotation: Quat::from_rotation_z(f32::to_radians(rock_rot)),
-                    translation: Vec3::new(
-                        rock_x,
-                        rock_y,
-                        0.0,
-                    ),
+                    translation: Vec3::new(rock_x, rock_y, 0.0),
                     ..Default::default()
                 },
                 ..Default::default()
             })
             .insert(RigidBody::Static)
-            .insert(CollisionShape::Sphere { radius: rock_size * 100.0 })
+            .insert(CollisionShape::Sphere {
+                radius: rock_size * 10.0,
+            })
             .insert(Size::square(rock_size));
     }
 }
@@ -190,46 +219,20 @@ fn spawn_player_ship(
             ..Default::default()
         })
         .insert(Player)
-        .insert(
-            Health { value: 3 },
-        )
-        .insert(
-            ActionPoints { value: 3 },
-        )
+        .insert(Health { value: 3 })
+        .insert(ActionPoints { value: 3 })
+        .insert(Direction { d: 0 })
         .insert(PlayerTurn(Turn::Player))
         .insert(RigidBody::Static)
-        .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
+        .insert(CollisionShape::Sphere {
+            radius: SHIP_SIZE * 100.0,
+        })
         .insert(CollisionLayers::new(Layer::Player, Layer::Enemy))
-        .insert(CollisionLayers::none()
-                    .with_group(Layer::Player)
-                    .with_masks(&[Layer::Enemy, Layer::Rock]))
-        .insert(Size::square(SHIP_SIZE))
-        .with_children(|parent| {
-            parent
-                .spawn_bundle(MaterialMesh2dBundle {
-                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-                    transform: Transform::default()
-                        .with_scale(Vec3::splat(128. * 3.0))
-                        .with_translation(Vec3::new(272.0, 0.0, 0.0))
-                        .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
-                    material: materials.add(ColorMaterial::from(Color::RED)),
-                    visibility: Visibility { is_visible: false },
-                    ..Default::default()
-                })
-                .insert(TargetReticule);
-            parent
-                .spawn_bundle(MaterialMesh2dBundle {
-                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-                    transform: Transform::default()
-                        .with_scale(Vec3::splat(128. * 3.0))
-                        .with_translation(Vec3::new(-272.0, 0.0, 0.0))
-                        .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
-                    material: materials.add(ColorMaterial::from(Color::RED)),
-                    visibility: Visibility { is_visible: false },
-                    ..Default::default()
-                })
-                .insert(TargetReticule);
-        });
+        .insert(
+            CollisionLayers::none()
+                .with_group(Layer::Player)
+                .with_masks(&[Layer::Enemy, Layer::Rock]),
+        );
 }
 
 fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -252,40 +255,110 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         })
         .insert(Enemy)
-        .insert(
-            Health { value: 5 },
-        )
-        .insert(
-            ActionPoints { value: 5 },
-        )
+        .insert(Health { value: 5 })
+        .insert(ActionPoints { value: 5 })
         .insert(PlayerTurn(Turn::Enemy))
         .insert(RigidBody::Static)
-        .insert(CollisionShape::Sphere { radius: SHIP_SIZE * 100.0 })
-        .insert(CollisionLayers::none()
-                    .with_group(Layer::Enemy)
-                    .with_masks(&[Layer::Player, Layer::Rock]))
+        .insert(CollisionShape::Sphere {
+            radius: SHIP_SIZE * 100.0,
+        })
+        .insert(
+            CollisionLayers::none()
+                .with_group(Layer::Enemy)
+                .with_masks(&[Layer::Player, Layer::Rock]),
+        )
         .insert(Size::square(SHIP_SIZE));
+}
+
+fn get_gun_arc(d: i32) -> Vec3 {
+    match d {
+        0 => Vec3::new(0.0, 1.0, 0.0),
+        1 => Vec3::new(1.0, 1.0, 0.0),
+        2 => Vec3::new(1.0, 0.0, 0.0),
+        3 => Vec3::new(1.0, -1.0, 0.0),
+        4 => Vec3::new(0.0, -1.0, 0.0),
+        5 => Vec3::new(-1.0, -1.0, 0.0),
+        6 => Vec3::new(-1.0, 0.0, 0.0),
+        7 => Vec3::new(-1.0, 1.0, 0.0),
+        _ => Vec3::new(0.0, 0.0, 0.0),
+    }
+}
+
+fn gun(
+    mut commands: Commands,
+    ship: Query<(With<Player>, &Transform, &Direction)>,
+    asset_server: Res<AssetServer>,
+) {
+    for (_, transform, direction) in ship.iter() {
+        let mut l_dir = direction.d - 2;
+        if l_dir < 0 {
+            l_dir = direction.d + 8 - 2;
+        }
+        let mut r_dir = direction.d + 2;
+        if r_dir > 7 {
+            r_dir = direction.d - 8 + 2;
+        }
+
+        println!("{} {} {}", direction.d, l_dir, r_dir);
+        let left = get_gun_arc(l_dir);
+        let right = get_gun_arc(r_dir);
+
+        //Handle direction to rotatio        t.translation.x += 10.0;
+        commands
+            .spawn_bundle(SpriteBundle {
+                texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                transform: transform.clone(),
+                ..Default::default()
+            })
+            .insert(RigidBody::Dynamic)
+            //.insert(CollisionShape::Sphere { radius: 10.0 })
+            .insert(Velocity::from_linear(left * 1000.0));
+
+        commands
+            .spawn_bundle(SpriteBundle {
+                texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                transform: transform.clone(),
+                ..Default::default()
+            })
+            .insert(RigidBody::Dynamic)
+            //.insert(CollisionShape::Sphere { radius: 10.0 })
+            .insert(Velocity::from_linear(right * 1000.0));
+
+        //commands.entity(entity).push_children(&[bullet]);
+    }
 }
 
 // TODO: player and enemy movement should be separated since enemy will be AI based and doens't require keypress
 // TODO: use loop for player::Turn.count number of turns decreasing by 1 for each action
 fn ship_movement(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut player_q: Query<(With<Player>, &mut Transform, &PlayerTurn)>,
+    mut player_q: Query<(With<Player>, &mut Transform, &PlayerTurn, &mut Direction)>,
     mut targets: Query<(&mut Visibility, With<TargetReticule>)>,
 ) {
-    for (_, mut transform, player) in player_q.iter_mut() {
+    for (_, mut transform, player, mut direction) in player_q.iter_mut() {
         if player.0 == player_turn.0 {
             let mut rotation_factor = 0.0;
             let mut movement_factor = 0.0;
 
             // rotate on left/right
             if keyboard_input.pressed(KeyCode::A) {
+                if direction.d == 0 {
+                    direction.d = 7;
+                } else {
+                    direction.d -= 1;
+                }
                 movement_factor += FORWARD_MOVE_DIST;
                 rotation_factor += 1.0;
             }
             if keyboard_input.pressed(KeyCode::D) {
+                if direction.d == 7 {
+                    direction.d = 0;
+                } else {
+                    direction.d += 1;
+                }
                 movement_factor += FORWARD_MOVE_DIST;
                 rotation_factor -= 1.0;
             }
@@ -296,11 +369,7 @@ fn ship_movement(
             }
 
             //Toggle firing arcs when pressed
-            if keyboard_input.pressed(KeyCode::Space) {
-                for (mut visibility, _) in targets.iter_mut() {
-                    visibility.is_visible = !(visibility.is_visible)
-                }
-            }
+            if keyboard_input.pressed(KeyCode::Space) {}
 
             for _ in 0..2 {
                 let rotation_delta = Quat::from_rotation_z(rotation_factor * f32::to_radians(22.5));
@@ -352,38 +421,41 @@ fn ship_collide(
     mut events: EventReader<CollisionEvent>,
     mut query: QuerySet<(
         QueryState<&mut Health, With<Player>>,
-        QueryState<&mut Health, With<Enemy>>
+        QueryState<&mut Health, With<Enemy>>,
     )>,
 ) {
-    events
-        .iter()
-        .filter(|e| e.is_started())
-        .for_each(|event| {
-            let (layers_1, layers_2) = event.collision_layers();
-            if (is_player(layers_1) && is_enemy(layers_2)) || (is_player(layers_2) && is_enemy(layers_1)) {
-                println!("Collision between ships");
-                for mut health in query.q0().iter_mut() {
-                    health.value -= 1;
-                    println!("Player health: {}", health.value); // DEBUG!
-                }
-                for mut health in query.q1().iter_mut() {
-                    health.value -= 1;
-                    println!("Enemy health: {}", health.value); // DEBUG!
-                }
-            } else if (is_player(layers_1) && is_rock(layers_2)) || (is_player(layers_2) && is_rock(layers_1)) {
-                println!("Collision between ship and rock");
-                for mut health in query.q0().iter_mut() {
-                    health.value -= 1;
-                    println!("Player health: {}", health.value); // DEBUG!
-                }
-            } else if (is_enemy(layers_1) && is_rock(layers_2)) || (is_enemy(layers_2) && is_rock(layers_1)) {
-                println!("Collision between ship and rock");
-                for mut health in query.q1().iter_mut() {
-                    health.value -= 1;
-                    println!("Enemy health: {}", health.value); // DEBUG!
-                }
+    events.iter().filter(|e| e.is_started()).for_each(|event| {
+        let (layers_1, layers_2) = event.collision_layers();
+        if (is_player(layers_1) && is_enemy(layers_2))
+            || (is_player(layers_2) && is_enemy(layers_1))
+        {
+            println!("Collision between ships");
+            for mut health in query.q0().iter_mut() {
+                health.value -= 1;
+                println!("Player health: {}", health.value); // DEBUG!
             }
-        });
+            for mut health in query.q1().iter_mut() {
+                health.value -= 1;
+                println!("Enemy health: {}", health.value); // DEBUG!
+            }
+        } else if (is_player(layers_1) && is_rock(layers_2))
+            || (is_player(layers_2) && is_rock(layers_1))
+        {
+            //println!("Collision between ship and rock");
+            for mut health in query.q0().iter_mut() {
+                health.value -= 1;
+                println!("Player health: {}", health.value); // DEBUG!
+            }
+        } else if (is_enemy(layers_1) && is_rock(layers_2))
+            || (is_enemy(layers_2) && is_rock(layers_1))
+        {
+            //println!("Collision between ship and rock");
+            for mut health in query.q1().iter_mut() {
+                health.value -= 1;
+                println!("Enemy health: {}", health.value); // DEBUG!
+            }
+        }
+    });
 }
 
 fn is_player(layers: CollisionLayers) -> bool {
