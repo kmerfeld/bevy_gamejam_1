@@ -5,6 +5,7 @@ use heron::prelude::*;
 use rand::Rng;
 
 mod enemy_ai;
+mod ui;
 
 const TIME_STEP: f32 = 0.1;
 
@@ -44,6 +45,9 @@ fn main() {
         .add_plugin(PhysicsPlugin::default())
         .add_startup_system(setup_camera)
         .add_startup_system(setup_rocks)
+        .add_startup_system(ui::setup)
+        .add_system(ui::enemy_text_update_system)
+        .add_system(ui::player_text_update_system)
         .add_startup_system(spawn_player_ship)
         .add_system(
             enemy_ai::think
@@ -70,13 +74,13 @@ pub struct Player;
 pub struct Enemy;
 
 #[derive(Component)]
-struct Health {
-    value: i32,
+pub struct Health {
+    pub value: i32,
 }
 
 #[derive(Component)]
-struct ActionPoints {
-    //value: i32,
+pub struct ActionPoints {
+    pub value: i32,
 }
 
 ///0 => up
@@ -212,7 +216,7 @@ fn spawn_player_ship(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(Health { value: 3 })
-        //.insert(ActionPoints { value: 3 })
+        .insert(ActionPoints { value: 3 })
         .insert(Direction { d: 0 })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
@@ -248,7 +252,7 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Enemy)
         .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
-        //.insert(ActionPoints { value: 5 })
+        .insert(ActionPoints { value: 5 })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
