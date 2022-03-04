@@ -27,7 +27,6 @@ pub fn game_over(
     }
     for health in enemy.iter() {
         if health.value <= 0 {
-            println!("Hey you won {:?}", app_state.current());
             match app_state.current() {
                 crate::AppState::InGame => app_state.set(crate::AppState::Win).unwrap(),
                 _ => (),

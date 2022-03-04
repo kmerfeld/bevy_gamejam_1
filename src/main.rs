@@ -305,7 +305,12 @@ fn ship_movement(
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
     asset_server: Res<AssetServer>,
-    mut player: Query<(With<Player>, &mut Transform, &mut Direction, &mut ActionPoints)>,
+    mut player: Query<(
+        With<Player>,
+        &mut Transform,
+        &mut Direction,
+        &mut ActionPoints,
+    )>,
 ) {
     for (_, mut transform, mut direction, mut ap) in player.iter_mut() {
         if Turn::Player == player_turn.0 {
@@ -357,7 +362,7 @@ fn ship_movement(
                         )
                         .insert(Velocity::from_linear(right * 1000.0));
 
-                        ap.value -= 3;
+                    ap.value -= 3;
                 }
             } else {
                 // rotate on left/right
