@@ -214,7 +214,6 @@ fn spawn_player_ship(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Health { value: 3 })
         //.insert(ActionPoints { value: 3 })
         .insert(Direction { d: 0 })
-        .insert(PlayerTurn(Turn::Player))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
@@ -250,7 +249,6 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
         //.insert(ActionPoints { value: 5 })
-        .insert(PlayerTurn(Turn::Enemy))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
@@ -324,10 +322,10 @@ fn gun(
 fn ship_movement(
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut player_q: Query<(With<Player>, &mut Transform, &PlayerTurn, &mut Direction)>,
+    mut player_q: Query<(With<Player>, &mut Transform, &mut Direction)>,
 ) {
-    for (_, mut transform, player, mut direction) in player_q.iter_mut() {
-        if player.0 == player_turn.0 {
+    for (_, mut transform, mut direction) in player_q.iter_mut() {
+        if Turn::Player == player_turn.0 {
             let mut rotation_factor = 0.0;
             let mut movement_factor = 0.0;
 
@@ -340,6 +338,8 @@ fn ship_movement(
                 }
                 movement_factor += FORWARD_MOVE_DIST;
                 rotation_factor += 1.0;
+
+                player_turn.0 = Turn::Enemy;
             }
             if keyboard_input.pressed(KeyCode::D) {
                 if direction.d == 7 {
@@ -349,11 +349,14 @@ fn ship_movement(
                 }
                 movement_factor += FORWARD_MOVE_DIST;
                 rotation_factor -= 1.0;
+
+                player_turn.0 = Turn::Enemy;
             }
 
             // move forward
             if keyboard_input.pressed(KeyCode::W) {
                 movement_factor += FORWARD_MOVE_DIST;
+                player_turn.0 = Turn::Enemy;
             }
 
             //Toggle firing arcs when pressed
@@ -373,7 +376,6 @@ fn ship_movement(
             // map boundaries
             let extents = Vec3::from((BOUNDS / 2.0, 0.0));
             transform.translation = transform.translation.min(extents).max(-extents);
-            player_turn.0 = Turn::Enemy;
         }
     }
 }
