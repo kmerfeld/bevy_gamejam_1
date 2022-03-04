@@ -1,4 +1,4 @@
-# Rusty Sailor
+# Rusty Pirates
 
 ## _A simple 2D turn-based naval combat strategy game._
 
