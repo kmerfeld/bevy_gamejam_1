@@ -86,7 +86,7 @@ pub fn enemy_text_update_system(
             h_text.sections[0].value = format!("Enemy Health: {}", e_health.value);
         }
         for mut ammo in e_ammo_text.iter_mut() {
-            ammo.sections[0].value = format!("Enemy Health: {}", e_ammo.value);
+            ammo.sections[0].value = format!("Turn till enemy cannon readies: {}", e_ammo.value);
         }
     }
 }

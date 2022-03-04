@@ -10,6 +10,7 @@ pub fn think(
         With<crate::Enemy>,
         &mut Transform,
         &mut crate::Direction,
+        &mut crate::ActionPoints,
         Without<crate::Player>,
     )>,
 ) {
@@ -17,7 +18,7 @@ pub fn think(
         player_turn.0 = crate::Turn::Player;
         // println!("{:?}", player_turn.0);
         for (_, p) in player.iter() {
-            for (_, mut e, mut direction, _) in enemy.iter_mut() {
+            for (_, mut e, mut direction, mut ap, _) in enemy.iter_mut() {
                 let mut rotation_factor = 0.0;
                 let mut movement_factor = 0.0;
 
@@ -25,6 +26,9 @@ pub fn think(
 
                 if player_q == direction.d {
                     movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
                 } else if (player_q - direction.d).abs() > 5 {
                     //TODO special case
                     //turn left
@@ -35,6 +39,10 @@ pub fn think(
                     }
                     movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                     rotation_factor += 1.0;
+
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
                 } else if direction.d > player_q {
                     //turn left
                     if direction.d == 0 {
@@ -44,9 +52,12 @@ pub fn think(
                     }
                     movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                     rotation_factor += 1.0;
+
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
                 } else {
                     //turn right
-
                     if direction.d == 7 {
                         direction.d = 0;
                     } else {
@@ -54,6 +65,10 @@ pub fn think(
                     }
                     movement_factor += (crate::FORWARD_MOVE_DIST) * 0.75;
                     rotation_factor -= 1.0;
+
+                    if ap.value < 3 {
+                        ap.value += 1;
+                    }
                 }
 
                 for _ in 0..2 {
@@ -73,21 +88,25 @@ pub fn think(
                 e.translation = e.translation.min(extents).max(-extents);
 
                 //GUN
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        texture: asset_server.load("textures/ship_parts/cannonBall.png"),
-                        transform: e.clone(),
-                        ..Default::default()
-                    })
-                    .insert(crate::CannonBall)
-                    .insert(RigidBody::Dynamic)
-                    .insert(CollisionShape::Sphere { radius: 10.0 })
-                    .insert(
-                        CollisionLayers::none()
-                            .with_group(crate::Layer::CannonBall)
-                            .with_masks(&[crate::Layer::Rock, crate::Layer::Player]),
-                    )
-                    .insert(Velocity::from_linear(crate::get_gun_arc(player_q) * 1000.0));
+                if ap.value == 3 {
+                    commands
+                        .spawn_bundle(SpriteBundle {
+                            texture: asset_server.load("textures/ship_parts/cannonBall.png"),
+                            transform: e.clone(),
+                            ..Default::default()
+                        })
+                        .insert(crate::CannonBall)
+                        .insert(RigidBody::Dynamic)
+                        .insert(CollisionShape::Sphere { radius: 10.0 })
+                        .insert(
+                            CollisionLayers::none()
+                                .with_group(crate::Layer::CannonBall)
+                                .with_masks(&[crate::Layer::Rock, crate::Layer::Player]),
+                        )
+                        .insert(Velocity::from_linear(crate::get_gun_arc(player_q) * 1000.0));
+
+                    ap.value -= 3;
+                }
             }
         }
     }
