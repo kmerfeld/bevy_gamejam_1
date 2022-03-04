@@ -1,9 +1,10 @@
 use bevy::core::FixedTimestep;
 use bevy::math::const_vec2;
 use bevy::prelude::*;
-use bevy::sprite::MaterialMesh2dBundle;
 use heron::prelude::*;
 use rand::Rng;
+
+mod enemy_ai;
 
 const TIME_STEP: f32 = 0.1;
 
@@ -18,6 +19,12 @@ const SHIP_SIZE: f32 = 0.15;
 const MAX_ROUNDS: i32 = 10;
 const TIMESTEP_1_PER_SECOND: f64 = 60.0 / 60.0;
 
+#[derive(SystemLabel, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum TurnLabel {
+    Player,
+    Enemy,
+}
+
 fn main() {
     App::new()
         .insert_resource(WindowDescriptor {
@@ -29,7 +36,7 @@ fn main() {
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(TIMESTEP_1_PER_SECOND))
-                .with_system(gun),
+                .with_system(enemy_ai::think),
         )
         .insert_resource(PlayerTurn(Turn::Player))
         .insert_resource(ClearColor(Color::rgb(0.00, 0.50, 0.70)))
@@ -38,12 +45,17 @@ fn main() {
         .add_startup_system(setup_camera)
         .add_startup_system(setup_rocks)
         .add_startup_system(spawn_player_ship)
+        .add_system(
+            enemy_ai::think
+                .label(TurnLabel::Enemy)
+                .before(TurnLabel::Player),
+        )
         .add_startup_system(spawn_enemy_ships)
-        .add_system(detect_collisions)
+        //.add_system(detect_collisions)
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
-                .with_system(ship_movement),
+                .with_system(ship_movement.label(TurnLabel::Player)),
         )
         .add_system(ship_collide)
         .add_plugins(DefaultPlugins)
@@ -52,10 +64,10 @@ fn main() {
 
 // players
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Player;
+pub struct Player;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct Enemy;
+pub struct Enemy;
 
 #[derive(Component)]
 struct Health {
@@ -64,7 +76,7 @@ struct Health {
 
 #[derive(Component)]
 struct ActionPoints {
-    value: i32,
+    //value: i32,
 }
 
 ///0 => up
@@ -76,33 +88,19 @@ struct ActionPoints {
 ///6 => right
 ///7 => up_right
 #[derive(Component)]
-struct Direction {
+pub struct Direction {
     d: i32,
-}
-
-#[derive(Component)]
-struct Size {
-    width: f32,
-    height: f32,
-}
-impl Size {
-    pub fn square(x: f32) -> Self {
-        Self {
-            width: x,
-            height: x,
-        }
-    }
 }
 
 // combat
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
-enum Turn {
+pub enum Turn {
     Player,
     Enemy,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
-struct PlayerTurn(Turn);
+pub struct PlayerTurn(Turn);
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 struct Round {
@@ -189,17 +187,11 @@ fn setup_rocks(mut commands: Commands, asset_server: Res<AssetServer>) {
             .insert(RigidBody::Static)
             .insert(CollisionShape::Sphere {
                 radius: rock_size * 10.0,
-            })
-            .insert(Size::square(rock_size));
+            });
     }
 }
 
-fn spawn_player_ship(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+fn spawn_player_ship(mut commands: Commands, asset_server: Res<AssetServer>) {
     let player_ship = asset_server.load("textures/ships/ship (10).png");
     // let ship_rot: i32 = rand::thread_rng().gen_range(-90, 1);
 
@@ -220,7 +212,7 @@ fn spawn_player_ship(
         })
         .insert(Player)
         .insert(Health { value: 3 })
-        .insert(ActionPoints { value: 3 })
+        //.insert(ActionPoints { value: 3 })
         .insert(Direction { d: 0 })
         .insert(PlayerTurn(Turn::Player))
         .insert(RigidBody::Static)
@@ -255,8 +247,9 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         })
         .insert(Enemy)
+        .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
-        .insert(ActionPoints { value: 5 })
+        //.insert(ActionPoints { value: 5 })
         .insert(PlayerTurn(Turn::Enemy))
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
@@ -266,11 +259,10 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
             CollisionLayers::none()
                 .with_group(Layer::Enemy)
                 .with_masks(&[Layer::Player, Layer::Rock]),
-        )
-        .insert(Size::square(SHIP_SIZE));
+        );
 }
 
-fn get_gun_arc(d: i32) -> Vec3 {
+pub fn get_gun_arc(d: i32) -> Vec3 {
     match d {
         0 => Vec3::new(0.0, 1.0, 0.0),
         1 => Vec3::new(1.0, 1.0, 0.0),
@@ -299,7 +291,6 @@ fn gun(
             r_dir = direction.d - 8 + 2;
         }
 
-        println!("{} {} {}", direction.d, l_dir, r_dir);
         let left = get_gun_arc(l_dir);
         let right = get_gun_arc(r_dir);
 
@@ -331,12 +322,9 @@ fn gun(
 // TODO: player and enemy movement should be separated since enemy will be AI based and doens't require keypress
 // TODO: use loop for player::Turn.count number of turns decreasing by 1 for each action
 fn ship_movement(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut player_turn: ResMut<PlayerTurn>,
     keyboard_input: Res<Input<KeyCode>>,
     mut player_q: Query<(With<Player>, &mut Transform, &PlayerTurn, &mut Direction)>,
-    mut targets: Query<(&mut Visibility, With<TargetReticule>)>,
 ) {
     for (_, mut transform, player, mut direction) in player_q.iter_mut() {
         if player.0 == player_turn.0 {
@@ -385,13 +373,8 @@ fn ship_movement(
             // map boundaries
             let extents = Vec3::from((BOUNDS / 2.0, 0.0));
             transform.translation = transform.translation.min(extents).max(-extents);
+            player_turn.0 = Turn::Enemy;
         }
-    }
-
-    if player_turn.0 == Turn::Player {
-        // player_turn.0 = Turn::Enemy;
-    } else {
-        player_turn.0 = Turn::Player;
     }
 }
 
