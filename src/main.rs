@@ -239,7 +239,7 @@ fn spawn_player_ship(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(Player)
         .insert(Health { value: 3 })
-        .insert(ActionPoints { value: 3 })
+        .insert(ActionPoints { value: 0 })
         .insert(Direction { d: 0 })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
@@ -274,7 +274,7 @@ fn spawn_enemy_ships(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Enemy)
         .insert(Direction { d: 4 })
         .insert(Health { value: 5 })
-        .insert(ActionPoints { value: 3 })
+        .insert(ActionPoints { value: 0 })
         .insert(RigidBody::Static)
         .insert(CollisionShape::Sphere {
             radius: SHIP_SIZE * 100.0,
