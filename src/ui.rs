@@ -178,7 +178,11 @@ pub fn enemy_text_update_system(
             h_text.sections[0].value = format!("Enemy Health: {}", e_health.value);
         }
         for mut ammo in e_ammo_text.iter_mut() {
-            ammo.sections[0].value = format!("Turn till enemy cannon readies: {}", e_ammo.value);
+            if 3 - e_ammo.value == 1 {
+                ammo.sections[0].value = format!("Turns till enemy cannon readies: Ready!");
+            } else {
+                ammo.sections[0].value = format!("Turn till enemy cannon readies: {}", 3 - e_ammo.value);
+            }
         }
     }
 }
@@ -195,7 +199,12 @@ pub fn player_text_update_system(
             h_text.sections[0].value = format!("Health: {}", p_health.value);
         }
         for mut h_ammo in p_ammo_text.iter_mut() {
-            h_ammo.sections[0].value = format!("Turns till cannon readies: {:?}", p_ammo.value);
+            if 3 - p_ammo.value == 0 {
+                h_ammo.sections[0].value = format!("Turns till cannon readies: Ready!");
+            } else {
+                h_ammo.sections[0].value = format!("Turns till cannon readies: {:?}", 3 - p_ammo.value);
+            }
+            
         }
     }
 }

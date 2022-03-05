@@ -36,7 +36,7 @@ fn main() {
         .add_system_set(SystemSet::on_update(AppState::Win).with_system(ui::button_system))
         .add_system_set(SystemSet::on_update(AppState::Lose).with_system(ui::button_system))
         .insert_resource(WindowDescriptor {
-            title: "bevy!".to_string(),
+            title: "Rusty Pirates".to_string(),
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
             ..Default::default()
